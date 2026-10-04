@@ -1,0 +1,4 @@
+#!/bin/sh
+# >>> homenet BEGIN (managed by xt8-bootstrap.sh - do not edit between markers)
+case "$2" in wireless|net_and_phy|allnet) sleep 10; sh /jffs/scripts/kasa-guest-allow.sh ;; esac
+# <<< homenet END

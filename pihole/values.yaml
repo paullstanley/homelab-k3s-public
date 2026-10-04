@@ -1,0 +1,438 @@
+# https://artifacthub.io/packages/helm/mojo2600/pihole   (chart 2.38.x, Pi-hole v6)
+#
+# Dual-stack Pi-hole: IPv4 VIP 192.168.50.11 + IPv6 VIP fd00:1234:5678:50::11 via MetalLB.
+# REQUIRES a dual-stack k3s cluster. On an IPv4-only cluster the "-ipv6" Services are rejected
+# by the API server and the whole helm install/upgrade fails.
+#
+# Apply with:
+#   helm upgrade --install pihole mojo2600/pihole -n pihole --version 2.38.0 -f pihole/values.yaml
+# Full steps, in order, with the things that went wrong: docs/07-pihole.md
+
+image:
+  repository: "pihole/pihole"
+  tag: "latest"            # consider pinning (e.g. "2026.07.2") so upgrades happen when you choose
+  # IfNotPresent: a Pi that already has the image can start Pi-hole without reaching Docker Hub
+  # (and without needing DNS to do it). Pull a new image deliberately when you want to upgrade.
+  pullPolicy: IfNotPresent
+
+# --- High availability -------------------------------------------------------------------------
+# Three pods, one per Pi. MetalLB moves 192.168.50.11 to a Pi that still has a healthy pod.
+# The three Pis must carry the label first:
+#   sudo kubectl label node k3sprimary pihole-host=true
+#   sudo kubectl label node funkyfresh pihole-host=true
+#   sudo kubectl label node k3snode2  pihole-host=true
+replicaCount: 3
+
+nodeSelector:
+  pihole-host: "true"
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: pihole
+        release: pihole
+    # Count only pods of the SAME rollout. Without this, during a helm upgrade the old pods are
+    # counted too, and the new pods can end up two on one Pi and none on another
+    # (happened 4 Oct 2026: two on k3sprimary, none on funkyfresh).
+    matchLabelKeys:
+      - pod-template-hash
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# --- IPv6 ----------------------------------------------------------------------------------------
+# With type LoadBalancer the chart creates separate SingleStack IPv6 Services
+# (<release>-dns-tcp-ipv6, -dns-udp-ipv6, -web-ipv6) that use the loadBalancerIPv6 values below.
+dualStack:
+  enabled: true
+
+# --- Web UI through Traefik (HTTPS, no port) -----------------------------------------------------
+# https://pihole.home.example.com/admin is served by Traefik on 192.168.50.12.
+# The redirect rule must exist first:
+#   sudo kubectl apply -f traefik/middleware-redirect-https.yaml
+# (Middleware "redirect-https" in namespace "pihole".)
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    # Send http:// requests to https://
+    traefik.ingress.kubernetes.io/router.middlewares: pihole-redirect-https@kubernetescrd
+  path: /
+  hosts:
+  - pihole.home.example.com
+
+# Kept as a LoadBalancer so http://192.168.50.11/admin still works if Traefik is ever down.
+serviceWeb:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.50.11
+  loadBalancerIPv6: "fd00:1234:5678:50::11"
+  annotations:
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+    # Three pods each keep their own login sessions. A sticky cookie makes Traefik send a
+    # browser to the same pod every time, which is what stops the login loop.
+    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.name: pihole_pod
+
+serviceDns:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.50.11
+  loadBalancerIPv6: "fd00:1234:5678:50::11"
+  annotations:
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+
+# The chart creates a DHCP LoadBalancer by default (plus an IPv6 one when dualStack is on).
+# You don't use Pi-hole for DHCP, and those Services would grab extra MetalLB addresses.
+serviceDhcp:
+  enabled: false
+
+# --- Admin password ------------------------------------------------------------------------------
+# The password is NOT in this file. Create the Secret once, before the first helm install
+# (docs/07-pihole.md, step 2):
+#   sudo kubectl create namespace pihole
+#   sudo kubectl -n pihole create secret generic pihole-admin --from-literal=password='<PIHOLE_ADMIN_PASSWORD>'
+admin:
+  enabled: true
+  existingSecret: "pihole-admin"
+  passwordKey: "password"
+
+# --- Upstream: DoH via cloudflared ----------------------------------------------------------------
+# The chart points Pi-hole at 127.0.0.1#5053 automatically when doh.enabled is true.
+# crazymax/cloudflared reads TUNNEL_DNS_UPSTREAM.
+doh:
+  enabled: true
+  # PINNED ON PURPOSE. Cloudflare removed "proxy-dns" (the feature this sidecar is) from
+  # cloudflared releases after 2 Feb 2026. 2025.9.1 is the last crazymax/cloudflared build before
+  # that and still has it. Do not move to a newer tag without a replacement (docs/07-pihole.md).
+  tag: "2025.9.1"
+  pullPolicy: IfNotPresent
+  envVars:
+    TUNNEL_DNS_UPSTREAM: "https://1.1.1.1/dns-query,https://1.0.0.1/dns-query"
+
+# --- Pi-hole v6 settings (FTLCONF_<section>_<key>) --------------------------------------------------
+extraEnvVars:
+  # Must be ALL in Kubernetes: queries arrive from LAN/node addresses, not the pod's own subnet.
+  FTLCONF_dns_listeningMode: "all"
+  # Answer pi.hole / the pod hostname with the VIPs, not the pod IP (10.42.x / pod IPv6)
+  FTLCONF_dns_reply_host_force4: "true"
+  FTLCONF_dns_reply_host_IPv4: "192.168.50.11"
+  FTLCONF_dns_reply_host_force6: "true"
+  FTLCONF_dns_reply_host_IPv6: "fd00:1234:5678:50::11"
+  # Reverse lookups / local names to the XT8 (IPv4 + the ULA /64). Arrays are ';'-separated.
+  FTLCONF_dns_revServers: "true,192.168.50.0/24,192.168.50.1,home.example.com;true,fd00:1234:5678:50::/64,192.168.50.1,home.example.com"
+  FTLCONF_dns_domainNeeded: "true"
+  # Encrypted-DNS bypass blocks (these are the defaults, kept explicit)
+  FTLCONF_dns_specialDomains_mozillaCanary: "true"
+  FTLCONF_dns_specialDomains_iCloudPrivateRelay: "true"
+  FTLCONF_dns_specialDomains_designatedResolver: "true"
+
+# The chart prefixes each key with FTLCONF_.
+ftl:
+  misc_delay_startup: "60"
+  dns_ignoreLocalhost: "true"
+  dns_piholePTR: "HOSTNAME"
+  dns_showDNSSEC: "true"
+  resolver_refreshNames: "ALL"
+  database_network_parseARPcache: "true"
+
+podDnsConfig:
+  enabled: true
+  policy: "None"
+  nameservers:
+    - 127.0.0.1
+    - 1.1.1.1
+
+dnsmasq:
+  # ----------------------------------------------------------------------------------------------
+  # Service names: things reached through a shared address or that are not a device's own name.
+  # Web apps behind Traefik all point at 192.168.50.12.
+  # ----------------------------------------------------------------------------------------------
+  customDnsEntries:
+    # Apps on the 2019 MacBook Pro server (192.168.50.2 / fd00:1234:5678:50::2)
+    - address=/shows/192.168.50.2
+    - address=/shows/fd00:1234:5678:50::2
+    - address=/movies/192.168.50.2
+    - address=/movies/fd00:1234:5678:50::2
+    - address=/plex.home.example.com/192.168.50.2
+    - address=/plex.home.example.com/fd00:1234:5678:50::2
+    # Apps on DC-01 (192.168.50.16)
+    - address=/torrent.home.example.com/192.168.50.16
+    # Pi-hole web UI: reached through Traefik (192.168.50.12) for HTTPS and sticky sessions.
+    # DNS itself is still 192.168.50.11 and fd00:1234:5678:50::11.
+    - address=/pihole.home.example.com/192.168.50.12
+    # Web apps behind Traefik (MetalLB 192.168.50.12)
+    - address=/hb.home.example.com/192.168.50.12
+    - address=/traefik.home.example.com/192.168.50.12
+    # Kubernetes API floating address (kube-vip)
+    - address=/k3s.home.example.com/192.168.50.10
+    # Router
+    - address=/gateway.home.example.com/192.168.50.1
+    - address=/gateway.home.example.com/fd00:1234:5678:50::1
+    - address=/myhome.asuscomm.com/192.168.50.1
+
+  # ----------------------------------------------------------------------------------------------
+  # Device names. Each line is:  <address>  <short name>  <full name>
+  # so every device answers to both "ps5" and "ps5.home.example.com".
+  #
+  # Source: XT8 client list exported 4 Oct 2026.
+  # [static] = address set on the device or reserved; safe to rely on.
+  # [dhcp]   = address handed out by the router. Reserve it on the XT8, or this line goes stale
+  #            when the device gets a different address.
+  # ----------------------------------------------------------------------------------------------
+  additionalHostsEntries:
+    # --- Network gear ----------------------------------------------------------------------------
+    - 192.168.50.1     gateway
+    - 192.168.50.3     livingroomap livingroomap.home.example.com                # [static] TP-Link Archer A7 (OpenWrt)
+    - 192.168.50.4     officeap officeap.home.example.com                        # [dhcp]   TP-Link Archer AX21
+    - fd00:1234:5678:50::1     gateway
+    - fd00:1234:5678:50::3     livingroomap livingroomap.home.example.com
+    # --- k3s cluster -----------------------------------------------------------------------------
+    - 192.168.50.5     k3sprimary k3sprimary.home.example.com                    # [static] pinned on the Pi
+    - 192.168.50.6     funkyfresh funkyfresh.home.example.com k3snode1 k3snode1.home.example.com   # [static]
+    - 192.168.50.7     k3snode2 k3snode2.home.example.com                        # [static] pinned on the Pi (router list still shows .34)
+    - 192.168.50.146   lima-k3s-mac lima-k3s-mac.home.example.com                # [dhcp]   RESERVE THIS: etcd member, MAC 52:55:55:15:F1:69
+    - 192.168.50.10    k3s-api k3s-api.home.example.com                          # kube-vip floating API address
+    - 192.168.50.11    pihole                                                      # MetalLB
+    - 192.168.50.12    traefik                                                     # MetalLB
+    - fd00:1234:5678:50::5     k3sprimary k3sprimary.home.example.com
+    - fd00:1234:5678:50::6     funkyfresh funkyfresh.home.example.com k3snode1 k3snode1.home.example.com
+    - fd00:1234:5678:50::7     k3snode2 k3snode2.home.example.com
+
+    # --- Servers and computers -------------------------------------------------------------------
+    - 192.168.50.2     mbp-server-lan mbp-server-lan.home.example.com 2019-mbp-server-lan   # [static] 2019 MacBook Pro server
+    - fd00:1234:5678:50::2     mbp-server-lan mbp-server-lan.home.example.com
+    - 192.168.50.82    mbp-lan-dongle mbp-lan-dongle.home.example.com            # [dhcp]
+    - 192.168.50.8     pretty-pan pretty-pan.home.example.com                    # [static] Raspberry Pi
+    - 192.168.50.57    soma-connect soma-connect.home.example.com                # [dhcp]   Raspberry Pi
+    - 192.168.50.16    dc01 dc01.home.example.com                                # [static]
+    - 192.168.50.17    ca01 ca01.home.example.com                                # [static]
+    - 192.168.50.159   owners-work-macbook owners-work-macbook.home.example.com  # [dhcp]
+
+    # --- Phones, tablets, watches ----------------------------------------------------------------
+    - 192.168.50.25    ownersphone ownersphone.home.example.com                  # [dhcp]
+    - 192.168.50.116   member2siphone2 member2siphone2.home.example.com            # [dhcp]
+    - 192.168.50.254   iphone-254 iphone-254.home.example.com                    # [dhcp]   router name is just "iPhone"
+    - 192.168.50.153   ipad ipad.home.example.com                                # [dhcp]
+    - 192.168.50.106   apple-watch apple-watch.home.example.com                  # [dhcp]
+
+    # --- TVs, speakers, consoles -----------------------------------------------------------------
+    - 192.168.50.94    living-room-atv living-room-atv.home.example.com          # [static] router name is just "Apple"
+    - 192.168.50.47    mainbedroomatv mainbedroomatv.home.example.com            # [dhcp]
+    - 192.168.50.48    member3s-mini member3s-mini.home.example.com                # [dhcp]
+    - 192.168.50.115   homepod-mini homepod-mini.home.example.com                # [dhcp]
+    - 192.168.50.247   homepod-mini-2 homepod-mini-2.home.example.com            # [dhcp]
+    - 192.168.50.149   mb-homepod-mini mb-homepod-mini.home.example.com          # [dhcp]
+    - 192.168.50.52    ps5 ps5.home.example.com                                  # [static]
+    - 192.168.50.93    nintendo-switch nintendo-switch.home.example.com          # [dhcp]
+
+    # --- Cameras ---------------------------------------------------------------------------------
+    - 192.168.50.127   living-room-camera living-room-camera.home.example.com    # [static] Axis Companion Eye mini L
+    - 192.168.50.209   entrance-camera entrance-camera.home.example.com          # [static] Axis Companion Bullet mini LE
+    - 192.168.50.173   axisdvr axisdvr.home.example.com                          # [dhcp]
+    - 192.168.50.69    backyard-camera backyard-camera.home.example.com wyzecam  # [dhcp]   Wyze Cam v3 - Homebridge uses this address
+    - 192.168.50.213   doorbell doorbell.home.example.com                        # [dhcp]
+
+    # --- Thermostats and smart home on the main network ------------------------------------------
+    - 192.168.50.71    upstairs-thermostat upstairs-thermostat.home.example.com      # [dhcp]
+    - 192.168.50.210   downstairs-thermostat downstairs-thermostat.home.example.com  # [dhcp] Resideo
+    - 192.168.50.72    office-bulb office-bulb.home.example.com                  # [dhcp]   Wyze
+    - 192.168.50.136   wiz-bulb wiz-bulb.home.example.com                        # [dhcp]   WiZ
+    - 192.168.50.103   roomba roomba.home.example.com                            # [dhcp]
+    - 192.168.50.157   tuya-157 tuya-157.home.example.com                        # [dhcp]   Tuya device, router name "wlan0"
+    - 192.168.50.214   smart-innovation-214 smart-innovation-214.home.example.com    # [dhcp] unidentified
+
+    # --- Unidentified (private/randomised MAC addresses) - rename once you know what they are ----
+    - 192.168.50.56    unknown-apple-56 unknown-apple-56.home.example.com        # [dhcp]   MAC 02:00:00:00:00:01
+    - 192.168.50.129   unknown-apple-129 unknown-apple-129.home.example.com      # [dhcp]   MAC 02:00:00:00:00:02
+    - 192.168.50.216   unknown-216 unknown-216.home.example.com                  # [static] MAC 02:00:00:00:00:03
+
+    # --- In the previous file but not in the 4 Oct client list (offline, or address changed) -----
+    - 192.168.50.74    henge-docks-llc henge-docks-llc.home.example.com
+    - 192.168.50.172   cam-phone cam-phone.home.example.com
+
+    # --- Guest / IoT network 192.168.101.0/24 (all [dhcp]) ---------------------------------------
+    # Kasa switches and dimmers (TP-Link) - Homebridge Kasa Python talks to these addresses
+    - 192.168.101.5    foyer-lights foyer-lights.home.example.com
+    - 192.168.101.45   kids-bathroom kids-bathroom.home.example.com
+    - 192.168.101.83   outside-front-light outside-front-light.home.example.com
+    - 192.168.101.116  lr-ceiling-fan lr-ceiling-fan.home.example.com
+    - 192.168.101.118  hall-light hall-light.home.example.com
+    - 192.168.101.189  stairs-light stairs-light.home.example.com
+    - 192.168.101.194  front-porch front-porch.home.example.com
+    - 192.168.101.195  kitchen-lights kitchen-lights.home.example.com
+    - 192.168.101.201  mb-ceiling-fan mb-ceiling-fan.home.example.com
+    - 192.168.101.237  mb-overhead-lights mb-overhead-lights.home.example.com
+    - 192.168.101.238  patio-fan patio-fan.home.example.com
+    - 192.168.101.242  dining-room-light dining-room-light.home.example.com
+    # Wyze plugs, bulbs and light strips
+    - 192.168.101.6    entrance-lamp entrance-lamp.home.example.com
+    - 192.168.101.29   lr-reading-light lr-reading-light.home.example.com
+    - 192.168.101.58   office-leds office-leds.home.example.com
+    - 192.168.101.85   owners-lamp owners-lamp.home.example.com
+    - 192.168.101.137  mbtv mbtv.home.example.com
+    - 192.168.101.144  mb-leds mb-leds.home.example.com
+    - 192.168.101.154  floor-fan floor-fan.home.example.com
+    - 192.168.101.180  member2s-lamp member2s-lamp.home.example.com
+    - 192.168.101.183  edison-lights edison-lights.home.example.com
+    - 192.168.101.188  holiday-lights holiday-lights.home.example.com
+
+adlists:
+  - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+  - https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Spam/hosts
+  - https://v.firebog.net/hosts/static/w3kbl.txt
+  - https://adaway.org/hosts.txt
+  - https://v.firebog.net/hosts/AdguardDNS.txt
+  - https://v.firebog.net/hosts/Admiral.txt
+  - https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt
+  - https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
+  - https://v.firebog.net/hosts/Easylist.txt
+  - https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt
+  - https://hostfiles.frogeye.fr/firstparty-trackers-hosts.txt
+  - https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.2o7Net/hosts
+  - https://v.firebog.net/hosts/Prigent-Ads.txt
+  - https://v.firebog.net/hosts/Easyprivacy.txt
+  - https://raw.githubusercontent.com/bigdargon/hostsVN/master/hosts
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/UncheckyAds/hosts
+  - https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts
+  - https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt
+  - https://v.firebog.net/hosts/Prigent-Crypto.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Risk/hosts
+  - https://phishing.army/download/phishing_army_blocklist_extended.txt
+  - https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-malware.txt
+  - https://v.firebog.net/hosts/RPiList-Malware.txt
+  - https://v.firebog.net/hosts/RPiList-Phishing.txt
+  - https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt
+  - https://raw.githubusercontent.com/AssoEchap/stalkerware-indicators/master/generated/hosts
+  - https://paulgb.github.io/BarbBlock/blacklists/hosts-file.txt
+  - https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/AmazonFireTV.txt
+  - https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/SmartTV.txt
+  - https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-blocklist.txt
+  - https://raw.githubusercontent.com/jdlingyu/ad-wars/master/hosts
+  - https://raw.githubusercontent.com/matomo-org/referrer-spam-blacklist/master/spammers.txt
+  - https://someonewhocares.org/hosts/zero/hosts
+  - https://raw.githubusercontent.com/VeleSila/yhosts/master/hosts
+  - https://winhelp2002.mvps.org/hosts.txt
+  - https://v.firebog.net/hosts/neohostsbasic.txt
+  - https://raw.githubusercontent.com/RooneyMcNibNug/pihole-stuff/master/SNAFU.txt
+  - https://www.github.developerdan.com/hosts/lists/ads-and-tracking-extended.txt
+  - https://raw.githubusercontent.com/chadmayfield/my-pihole-blocklists/master/lists/pi_blocklist_porn_top1m.list
+  - https://v.firebog.net/hosts/Prigent-Adult.txt
+  # was a github.com/.../blob/... page (HTML, not a list). Raw URL instead:
+  - https://raw.githubusercontent.com/NethServer/dns-community-blacklist/master/easylist.dns
+  # Hagezi: only the "-onlydomains" files are Pi-hole format. The plain wildcard/*.txt files
+  # use "*.domain" lines, which Pi-hole rejects, so those duplicates were removed.
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/fake-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.medium-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/popupads-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nosafesearch-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/dyndns-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/hoster-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.amazon-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.tiktok-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.tiktok.extended-onlydomains.txt
+  # Encrypted-DNS (DoH/DoT) bypass hostnames
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/doh-onlydomains.txt
+
+whitelist:
+  - www.bit.ly
+  - bit.ly
+  - ow.ly
+  - tinyurl.com
+  - cdn.optimizely.com
+  - split.io
+  - s.shopify.com
+  - target.walgreens.com
+  - thepiratebay.org
+  - telemetry.gfe.nvidia.com
+  - logging.api.intuit.com
+  - events.split.io
+  - cdn.split.io
+  - heapanalytics.com
+  - api2.amplitude.com
+  - collegeboard.org.ssl.d1.sc.omtrdc.net
+  - sdk.split.io
+  - auth.split.io
+  - cdn.heapanalytics.com
+  - strack.collegeboard.org
+  - rum.api.intuit.com
+  - eventbus.intuit.com
+  - s.click.aliexpress.com
+  - firebaselogging-pa.googleapis.com
+  - 3e6281cdf7991c82a612a2d3891ca86ada88e22c.cws.conviva.com
+  - analytics-ingestion.production-public.tubi.io
+  - uapi.adrise.tv
+  - v20.events.data.microsoft.com
+  - settings-win.data.microsoft.com
+  - v10.events.data.microsoft.com
+  - smetrics.aem.playstation.com
+  - telemetry-console.api.playstation.com
+  - telemetry.api.playstation.com
+  - c.msn.com
+  - srtb.msn.com
+  - browser.events.data.msn.com
+  - s.adrise.tv
+  - assets.huluim.com
+  - umwatson.events.data.microsoft.com
+  - info.microsoft.com
+  - dc.services.visualstudio.com
+  - browser.pipe.aria.microsoft.com
+  - mobile.events.data.microsoft.com
+  - config.fp.measure.office.com
+  - js.monitor.azure.com
+  - browser.events.data.microsoft.com
+  - upload.fp.measure.office.com
+  - upload2.fp.measure.office.com
+  - cdn.cookielaw.org
+  - vortex.hulu.com
+  - doppler.hulu.com
+  - fbsbx.com
+  - fbcdn.net
+  - static.xx.fbcdn.net
+  - star-mini.c10r.facebook.com
+  - facebook.com
+  - www.facebook.com
+  - web.facebook.com
+  - mobile-collector.newrelic.com.cdn.cloudflare.net
+  - mobile-collector.newrelic.com
+  - open.free-tracker.ga
+  - retracker.lanta-net.ru
+  - torrent-tracker.ru
+  - tracker-udp.gbitt.info
+  - tracker.bittor.pw
+  - tracker.mgtracker.org
+  - tracker.tvunderground.org.ru
+  - tracker.christianbro.pw
+  - tracker.cypherpunks.ru
+  - coppersurfer.tk
+  - browser-intake-datadoghq.com
+  - www.clarity.ms
+  - watch.primescreenstreams.com
+  - trk2.magixflix.club
+  - tracker.nwps.ws
+  - trk.bestmoviesflix.xyz
+  - metrics.icloud.com
+  - gs-loc.apple.com
+  - api.smoot.apple.com
+  - iphonesubmissions.apple.com
+
+blacklist:
+  - tp-link.com
+  - ecx.images-amazon.com
+  - cf-st.sc-cdn.net
+
+regex:
+  - ^(.+[_.-])?(ads?(erv(er?|ice)?s?|im(age|g)s?|track(er|ing)?|vert(s|is(ing|ements?))?)?|aff(iliat(es?|ion))?|analytics?|banners?|beacons?|count(ers?)?|mads|pixels?|stat(s|istics)?)[0-9]*[_.-]
+  - ^(ads|logs|cloudservices).roku.com$
+  # Note: DNS queries never contain "http(s)://", so this next one never matches. Kept as you had it.
+  - ^https?://([A-Za-z0-9.-]*\.)?(clicks\.beap\.bc\.yahoo\.com|secure\.footprint\.net|match\.com|sitescout|appnexus|evidon|mediamath|scorecardresearch|doubleclick|flashtalking|turn|mathtag|googlesyndication|s\.yimg\.com/cv/ae/us/audience|yieldmanager|w55c|adnxs|advertising|flashtalking|turn|mathtag|surveylink|info\.yahoo|ads\.yahoo|global\.ard\.yahoo|(.+)\.g00)(\.\w{2}\.\w{2}|\.\w{2,4})?/
+  - (^|\.)((xn--.*)|buffpanel\.com|bugsnag\.com|redshell\.io|treasuredata\.com|unity(|3d)\.com|unityads(|\.co)\.com|g00\..*|ad.*\.doubleclick\.net)$
+  - \.(ru|cn|ml|ga|gq|cf|tk|pw|ua|ug|ve|info|site|club|host|party)$

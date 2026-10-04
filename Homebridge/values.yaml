@@ -1,0 +1,73 @@
+# Homebridge. Chart: k8s-at-home/homebridge   Namespace: homebridge   Runs on k3sprimary.
+#
+#   helm repo add k8s-at-home https://k8s-at-home.com/charts/
+#   helm repo update
+#   sudo kubectl create ns homebridge
+#   sudo kubectl apply -f traefik/middleware-redirect-https.yaml
+#   helm upgrade --install homebridge k8s-at-home/homebridge -n homebridge -f Homebridge/values.yaml
+#
+# Full steps, UI settings, Kasa and camera setup: docs/08-homebridge.md
+# NOT highly available on purpose: HomeKit pairs with one bridge identity stored on one volume.
+
+image:
+  repository: ghcr.io/oznu/homebridge
+  tag: "latest"
+  # IfNotPresent: the pod can restart without reaching the registry (and without DNS).
+  pullPolicy: IfNotPresent
+
+env:
+  TZ: America/New_York
+
+service:
+  main:
+    ports:
+      http:
+        port: 8581
+
+# Required. HomeKit discovery (mDNS) and the accessory ports only work on the node's own
+# network, so the pod uses k3sprimary's network directly (192.168.50.5).
+hostNetwork: true
+
+# Web UI: https://hb.home.example.com through Traefik (192.168.50.12), no port number.
+# In the Homebridge UI, "Enable HTTPS" must stay OFF - Traefik does the HTTPS. Turning it on
+# gives "Bad Gateway".
+ingress:
+  main:
+    enabled: true
+    primary: true
+    ingressClassName: "traefik"
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      # http:// -> https://
+      traefik.ingress.kubernetes.io/router.middlewares: homebridge-redirect-https@kubernetescrd
+    hosts:
+      - host: hb.home.example.com
+        paths:
+          - path: /
+
+# Everything Homebridge knows (config.json, plugins, HomeKit pairing) lives on this volume,
+# which is a folder on k3sprimary's disk. Back it up from the UI (docs/13-backups-and-secrets.md).
+persistence:
+  config:
+    enabled: true
+    type: pvc
+    storageClass: "local-path"
+    size: 1Gi
+
+configmap:
+  scripts:
+    enabled: true
+    data:
+      startup.sh: |
+        #!/bin/sh
+        # Runs as root every time the container starts.
+        # ffmpeg is needed by the camera plugin. "|| echo" keeps Homebridge starting even when
+        # the package servers cannot be reached.
+        apt-get update && apt-get install -y ffmpeg libpcap-dev || echo "apt-get failed; continuing without updating packages"
+
+        # Do NOT npm-install plugins here. Plugins are installed from the Homebridge UI and are
+        # kept on the volume. Installing "homebridge-camera-ffmpeg" here is what put a second,
+        # outdated camera plugin next to @homebridge-plugins/homebridge-camera-ffmpeg.
+        # Plugin list: docs/08-homebridge.md
+
+        echo "Started successfully."

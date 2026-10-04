@@ -1,0 +1,75 @@
+# helm repo add oben01 https://oben01.github.io/charts/
+# helm repo update
+# kubectl create ns homarr
+# helm install homarr oben01/homarr -f values.yaml
+
+# -- Default values for homarr
+# -- Declare variables to be passed into your templates.
+
+image:
+  # -- Image repository
+  repository: ghcr.io/ajnart/homarr
+  # -- Image pull policy
+  pullPolicy: Always
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: "latest"
+
+env:
+  # -- Your local time zone
+  TZ: "America/New_York"
+ 
+nameOverride: ""
+# -- Overrides chart's fullname
+fullnameOverride: ""
+
+# -- Service configuration
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 7575
+  # -- Service target port
+  targetPort: 7575
+
+# -- Ingress configuration
+ingress:
+  # -- Enable ingress
+  enabled: true
+  # -- Ingress class name
+  ingressClassName: "traefik"
+  # -- Ingress annotations
+  annotations: 
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+  # -- Ingress hosts configuration
+  hosts:
+    - host: homarr.example.com
+      paths:
+        - path: /
+  # -- Ingress TLS configuration
+  tls: 
+    - secretName: homarr
+      hosts:
+        - homarr.example.com
+
+# -- Persistent storage configuration
+persistence:
+  - name: homarr-config
+    enabled: true
+    storageClassName: "local-path"
+    accessMode: "ReadWriteOnce"
+    size: "50Mi"
+    mountPath: "/app/data/configs"
+  - name: homarr-database
+    enabled: true
+    storageClassName: "local-path"
+    accessMode: "ReadWriteOnce"
+    size: "50Mi"
+    mountPath: "/app/database"
+  - name: homarr-icons
+    enabled: true
+    storageClassName: "local-path"
+    accessMode: "ReadWriteOnce"
+    size: "50Mi"
+    mountPath: "/app/public/icons"

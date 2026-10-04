@@ -1,0 +1,23 @@
+{
+  "platform": "KasaPython",
+  "name": "kasa-python",
+  "enableCredentials": true,
+  "username": "<KASA_ACCOUNT_EMAIL>",
+  "password": "<KASA_ACCOUNT_PASSWORD>",
+  "pollingInterval": 5,
+  "waitTimeUpdate": 100,
+  "manualDevices": [
+    { "host": "192.168.101.5" },
+    { "host": "192.168.101.45" },
+    { "host": "192.168.101.83" },
+    { "host": "192.168.101.116" },
+    { "host": "192.168.101.118" },
+    { "host": "192.168.101.189" },
+    { "host": "192.168.101.194" },
+    { "host": "192.168.101.195" },
+    { "host": "192.168.101.201" },
+    { "host": "192.168.101.237" },
+    { "host": "192.168.101.238" },
+    { "host": "192.168.101.242" }
+  ]
+}

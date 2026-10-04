@@ -1,0 +1,17 @@
+.DS_Store
+__MACOSX/
+# Never commit real secrets. Files matching these names stay on your machine only.
+*.secret
+*.secrets
+secrets/
+*-token.txt
+k3s-token*
+*.CFG
+*.cfg.bak
+a7-backup*.tar.gz
+jffs-*.tar*
+nvram-lists-*.txt
+*-deployed.yaml
+kubeconfig*
+k3s.yaml
+live-export/

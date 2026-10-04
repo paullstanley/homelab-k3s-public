@@ -1,0 +1,28 @@
+# Lima VM for the k3s node on the M1 MacBook Pro.
+#
+# RECONSTRUCTED TEMPLATE - not a copy of the file on your Mac. The real one is at
+#   ~/.lima/k3s-mac/lima.yaml
+# Copy it over this file (docs/05-mac-node-lima.md, "Save the real VM definition").
+# What is known for certain about the running VM: Ubuntu 26.04 arm64, bridged LAN interface
+# named lima0 with MAC 52:55:55:15:F1:69, private NAT interface eth0 (192.168.5.15).
+#
+#   limactl start --name=k3s-mac k3s/lima/k3s-mac.yaml
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/26.04/release/ubuntu-26.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+cpus: 4
+memory: "6GiB"
+disk: "40GiB"
+# No host folders mounted into the VM; a k3s node does not need them.
+mounts: []
+# k3s brings its own containerd.
+containerd:
+  system: false
+  user: false
+networks:
+  # Bridged onto the Mac's wired LAN through socket_vmnet, so the VM gets its own
+  # 192.168.50.x address from the router. The fixed MAC keeps that address (and the VM's
+  # IPv6 address, which is built from the MAC) the same after a rebuild.
+  - lima: bridged
+    macAddress: "52:55:55:15:F1:69"
+    interface: lima0

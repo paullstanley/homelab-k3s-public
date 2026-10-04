@@ -1,0 +1,63 @@
+replicaCount: 1
+
+enterpriseEdition: 
+  enabled: false
+  image:
+    repository: portainer/portainer-ee
+    tag: 2.19.5
+    pullPolicy: Always
+
+image:
+  repository: portainer/portainer-ce
+  tag: 2.19.5
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+nodeSelector: {}
+
+serviceAccount:
+  annotations: {}
+  name: portainer-sa-clusteradmin
+
+service:
+  loadBalancerIP: <IP ADDRESS>  # ExampleÂ 192.168.0.13
+  type: LoadBalancer
+  httpPort: 80
+  httpsPort: 443
+  httpNodePort: 30777
+  httpsNodePort: 30779
+  edgePort: 8000
+  edgeNodePort: 30776
+  annotations: {}
+
+tls:
+  force: false
+  existingSecret: ""
+
+mtls:
+  enable: false
+  existingSecret: ""
+
+feature:
+  flags: []
+
+ingress:
+  enabled: true
+  ingressClassName: "traefik"
+  annotations: 
+    kubernetes.io/ingress.class: traefik
+  hosts:
+    - host: "portainer.example.com"
+      paths: 
+        - path: "/"
+  tls: []
+
+resources: {}
+
+persistence:
+  enabled: true
+  size: "2Gi"
+  annotations: {}
+  storageClass: "local-path"
+  existingClaim:

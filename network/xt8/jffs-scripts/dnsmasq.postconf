@@ -1,0 +1,19 @@
+#!/bin/sh
+# >>> homenet BEGIN (managed by xt8-bootstrap.sh - do not edit between markers)
+CONFIG="$1"
+. /usr/sbin/helper.sh
+. /jffs/scripts/homenet.conf
+# Kernel: IPv6 on br0 (the firmware has it off while IPv6 = Disable in the UI),
+# and never autoconfigure from anyone else's router advertisements.
+echo 0 > /proc/sys/net/ipv6/conf/br0/disable_ipv6
+echo 0 > /proc/sys/net/ipv6/conf/br0/accept_ra
+echo 0 > /proc/sys/net/ipv6/conf/br0/autoconf
+ip -6 addr show dev br0 | grep -q "${ROUTER6}/64" || ip -6 addr add "${ROUTER6}/64" dev br0
+# dnsmasq: advertise the ULA /64 with router lifetime 0 (no IPv6 default route),
+# SLAAC only, and the Pi-hole as the one and only IPv6 DNS server.
+pc_append "enable-ra" "$CONFIG"
+pc_append "ra-param=br0,0,0" "$CONFIG"
+pc_append "dhcp-range=::,constructor:br0,ra-stateless,64,12h" "$CONFIG"
+pc_append "dhcp-option=option6:dns-server,[${PIHOLE6}]" "$CONFIG"
+pc_append "dhcp-option=option6:domain-search,${DOMAIN}" "$CONFIG"
+# <<< homenet END

@@ -1,0 +1,43 @@
+{
+  "platform": "Camera-ffmpeg",
+  "name": "Camera FFmpeg",
+  "cameras": [
+    {
+      "name": "Living Room Camera",
+      "videoConfig": {
+        "source": "-rtsp_transport tcp -i rtsp://<AXIS_USER>:<AXIS_PASSWORD>@192.168.50.127/axis-media/media.amp?Axis-Orig-Sw=true",
+        "vcodec": "libx264",
+        "maxWidth": 1280,
+        "maxHeight": 720,
+        "maxFPS": 15,
+        "maxBitrate": 2000,
+        "forceMax": false,
+        "packetSize": 564,
+        "audio": false
+      }
+    },
+    {
+      "name": "Entrance Camera",
+      "videoConfig": {
+        "source": "-rtsp_transport tcp -i rtsp://<AXIS_USER>:<AXIS_PASSWORD>@192.168.50.209/axis-media/media.amp?Axis-Orig-Sw=true",
+        "vcodec": "libx264",
+        "maxWidth": 1280,
+        "maxHeight": 720,
+        "maxFPS": 15,
+        "maxBitrate": 2000,
+        "forceMax": false,
+        "packetSize": 564,
+        "audio": false
+      }
+    },
+    {
+      "name": "Backyard",
+      "videoConfig": {
+        "source": "-rtsp_transport tcp -i rtsp://<WYZE_RTSP_USER>:<WYZE_RTSP_PASSWORD>@192.168.50.69/live",
+        "stillImageSource": "-rtsp_transport tcp -i rtsp://<WYZE_RTSP_USER>:<WYZE_RTSP_PASSWORD>@192.168.50.69/live -vframes 1",
+        "vcodec": "copy",
+        "audio": true
+      }
+    }
+  ]
+}
