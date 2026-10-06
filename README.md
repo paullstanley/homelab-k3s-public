@@ -2,7 +2,7 @@
 
 > **Public copy.** The domain, names, MAC addresses, serial numbers, IPv6 ranges and Wi-Fi names in this repository are made-up stand-ins. Passwords and tokens are placeholders. Substitute your own values.
 
-Everything needed to put the house network and the k3s cluster back the way they were on 4 October 2026: guides, Helm values, manifests and scripts. Passwords, tokens and data backups are **not** here; [docs/13](docs/13-backups-and-secrets.md) lists what they are and where they go.
+Everything needed to put the house network and the k3s cluster back the way they were on 6 October 2026: guides, Helm values, manifests and scripts. Passwords, tokens and data backups are **not** here; [docs/13](docs/13-backups-and-secrets.md) lists what they are and where they go.
 
 Two rules that hold everywhere in this repo:
 
@@ -34,7 +34,7 @@ Each step depends on the ones above it. If only one thing broke, go straight to 
 | --- | --- | --- | --- |
 | 1 | XT8: GUI settings, guest/IoT network, bootstrap script, device lists | [02](docs/02-router-xt8.md) | `network/xt8/` |
 | 2 | Access points | [03](docs/03-access-points.md) | `network/archer-a7/` |
-| 3 | Raspberry Pis: OS, fixed addresses, k3s servers | [04](docs/04-k3s-cluster.md) | `k3s/config/` |
+| 3 | Raspberry Pis: OS, fixed addresses, k3s servers, CoreDNS replicas | [04](docs/04-k3s-cluster.md) | `k3s/config/` |
 | 4 | MetalLB, Traefik address, kube-vip | [06](docs/06-load-balancers.md) | `metallb/`, `traefik/`, `k3s/kube-vip/` |
 | 5 | Pi-hole | [07](docs/07-pihole.md) | `pihole/values.yaml` |
 | 6 | Mac VM as fourth server | [05](docs/05-mac-node-lima.md) | `k3s/lima/`, `k3s/config/lima-k3s-mac.yaml` |
@@ -61,6 +61,7 @@ When something is wrong: [docs/14](docs/14-troubleshooting.md). What is unfinish
 | Cloudflare 502 after Traefik moved | [09](docs/09-seerr-and-cloudflare.md) |
 | Home names not resolving on the work Mac | [11](docs/11-clients.md) |
 | Routers not sending IPv6 advertisements | [02](docs/02-router-xt8.md) |
+| Homebridge plugins failing DNS lookups (`getaddrinfo ENOTFOUND`): a host-network pod cannot reach the IPv6 cluster DNS address | [08](docs/08-homebridge.md) Step 1, [04](docs/04-k3s-cluster.md) Step 8, [14](docs/14-troubleshooting.md) A10 |
 
 ## What is in each folder
 
@@ -99,3 +100,21 @@ When something is wrong: [docs/14](docs/14-troubleshooting.md). What is unfinish
 | `Ingresses/nginx/example-web app.yaml` | Renamed to `example-web-app.yaml` |
 | `.DS_Store` files | Removed; `.gitignore` added |
 | Everything else listed as Current above | New |
+
+## Changes made to this repo on 6 October 2026
+
+All from one piece of work: Homebridge's Wyze and Resideo plugins were failing DNS lookups a few times an hour. Cause and fix are in [08](docs/08-homebridge.md) Step 1.
+
+| File | Change |
+| --- | --- |
+| `Homebridge/values.yaml` | **`dnsPolicy: None` and a `dnsConfig` block** (one name server, 10.43.0.10, `ndots: 1`). Image name changed to `ghcr.io/homebridge/homebridge` to match the live file. Warning about comment indentation in the startup script |
+| `Homebridge/config-examples/kasa-python.json` | Brought in line with the live config: polling 15, wait 1000, and the other plugin options |
+| `Homebridge/config-examples/camera-ffmpeg.json` | Wyze still-image line and stream limits as in the live config |
+| [docs/04](docs/04-k3s-cluster.md) | New Step 8: CoreDNS scaled to three; CoreDNS pods older than dual-stack; why host-network pods cannot reach IPv6 service addresses |
+| [docs/08](docs/08-homebridge.md) | The DNS block and how to check it; mDNS advertiser Ciao; Resideo 401s; camera and Wyze details confirmed; leftovers |
+| [docs/12](docs/12-verification.md) | CoreDNS and Homebridge DNS checks |
+| [docs/13](docs/13-backups-and-secrets.md) | What was pasted into a chat on 6 October and must be rotated |
+| [docs/14](docs/14-troubleshooting.md) | New A10 (DNS inside a pod, step by step) and new rows in Part B |
+| [docs/15](docs/15-open-items.md) | New open and unverified items; two old ones closed |
+
+Changed on the live cluster the same day, by command (nothing in this repo applies them): CoreDNS restarted and scaled to three replicas; `~/helm/homebridge/values.yaml` on k3sprimary given the DNS block and applied with `helm upgrade`.

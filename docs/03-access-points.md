@@ -85,7 +85,7 @@ Nothing to script and nothing to restore.
 
 In Access Point mode the stock firmware has no IPv6 settings and no SSH. The AX21 has no IPv6 address of its own and a ping to it over IPv6 times out. That is expected. Its Wi-Fi clients still get IPv6 from the XT8 because it bridges.
 
-The XT8 client list shows `officeAP` as "Automatic IP" at .4. If it ever comes up on another address, either set the static address above or reserve .4 on the XT8 for MAC `02:00:00:00:00:04`.
+The XT8 client list shows `officeAP` as "Automatic IP" at .4. If it ever comes up on another address, either set the static address above or reserve .4 on the XT8 for MAC `02:00:00:00:00:01`.
 
 The AX21's DNS and EasyMesh settings were not re-checked in September or October.
 

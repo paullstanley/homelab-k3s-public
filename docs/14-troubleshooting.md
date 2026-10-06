@@ -130,6 +130,7 @@ Use the address of the switch that is failing ([01](01-inventory.md)).
 
 | Result | Meaning | Fix |
 | --- | --- | --- |
+| Kasa works but Wyze devices or the thermostat lag or fail; log has `getaddrinfo ENOTFOUND` / `EAI_AGAIN` | DNS inside the pod | A10 |
 | Every accessory says "No Response" | Homebridge itself | Is the pod running? Is k3sprimary up? Open `http://192.168.50.5:8581` |
 | Ping fails for **every** Kasa device | The router rules are gone | On the XT8: `sh /jffs/scripts/kasa-guest-allow.sh`, then `sh /jffs/xt8-bootstrap.sh verify` |
 | Ping fails for **one** device | That device is off the network or changed address | Kasa app; XT8 client list; fix the reservation and `manualDevices` |
@@ -219,6 +220,87 @@ Things come back in the wrong order. Expected, and it settles by itself within a
 
 If it has not settled after ten minutes: A0, then on the XT8 `sh /jffs/xt8-bootstrap.sh verify`. After a router restart specifically, confirm the Kasa rules came back (A4).
 
+## A10. A Homebridge plugin logs `getaddrinfo ENOTFOUND` or `EAI_AGAIN` (DNS inside a pod)
+
+The house has DNS, the cluster looks healthy, but an app inside a pod intermittently cannot look names up. This is the path that found the 6 October 2026 fault. It works for any pod; the Homebridge UI has a terminal, which makes it the easy one.
+
+**1. Which name servers does the pod use? Paste in: the pod's shell** (Homebridge UI → Terminal).
+
+```bash
+cat /etc/resolv.conf
+```
+
+| You see | Meaning |
+| --- | --- |
+| Only `nameserver 10.43.0.10`, `options ndots:1` | Homebridge's correct state ([08](08-homebridge.md) Step 1). Go to step 2 |
+| `10.43.0.10` **and** `fd00:1234:5678:4300::a`, `ndots:5` | The DNS block is missing from the values file. For a host-network pod that is the fault. Apply `Homebridge/values.yaml` |
+| `1.1.1.1` / `9.9.9.9` | The pod is using the node's own DNS, not the cluster's. Look at its `dnsPolicy` |
+
+**2. Test each name server on its own, 20 times. Same shell.** One line; do not break it. Needs Node, which the Homebridge image has.
+
+```bash
+node -e 'const d=require("dns").promises;(async()=>{for(const s of process.argv.slice(1)){const r=new d.Resolver({timeout:2000,tries:1});r.setServers([s]);let ok=0,e={};for(let i=0;i<20;i++){try{await r.resolve4("api.wyzecam.com");ok++}catch(x){e[x.code]=(e[x.code]||0)+1}}console.log(s,"ok:",ok,JSON.stringify(e))}})()' 10.43.0.10 fd00:1234:5678:4300::a 1.1.1.1
+```
+
+Healthy answer on 6 October after the fix:
+
+```
+10.43.0.10 ok: 20 {}
+fd00:1234:5678:4300::a ok: 0 {"ECONNREFUSED":20}
+1.1.1.1 ok: 20 {}
+```
+
+The middle line failing is **normal from a host-network pod** and stays that way ([04](04-k3s-cluster.md) Step 8). `ECONNREFUSED` is how Node reports "could not contact the server"; the real reason is "Network is unreachable".
+
+| Result | Meaning | Next |
+| --- | --- | --- |
+| `10.43.0.10` fails, `1.1.1.1` works | CoreDNS, or the pod network to it | Step 3 |
+| Both fail | The node has lost its way out, or the router is intercepting | A1 |
+| Everything listed in `resolv.conf` passes | The failures come in bursts | Run it again when the log shows a fresh error |
+
+**3. Look at CoreDNS. Paste on: k3sprimary.**
+
+```bash
+sudo kubectl -n kube-system get pods -l k8s-app=kube-dns -o wide
+sudo kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.status.podIPs}{"\n"}{end}'
+sudo kubectl -n kube-system get endpointslices -l kubernetes.io/service-name=kube-dns
+sudo kubectl -n kube-system logs -l k8s-app=kube-dns --tail=100 | grep -v 'import glob'
+```
+
+| Result | Meaning | Fix |
+| --- | --- | --- |
+| Fewer than three pods, or all on one node | Replica count was reset | `sudo kubectl -n kube-system scale deployment coredns --replicas=3` |
+| A pod with one address only; IPv6 endpoint slice shows `<unset>` | The pod is older than dual-stack | `sudo kubectl -n kube-system rollout restart deployment coredns` |
+| `i/o timeout` or `SERVFAIL` in the log | CoreDNS cannot reach its upstream, which is the node's own DNS | Node DNS, [04](04-k3s-cluster.md) Step 2 |
+| Only "No files matching import glob pattern" warnings | Normal | Nothing |
+
+**4. Is it the route? Paste on: k3sprimary.**
+
+```bash
+ip -6 route get fd00:1234:5678:4300::a
+ip -6 route show default
+sudo ip6tables-save | grep -i '4300::a'
+ping -6 -c 3 "$(sudo kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].status.podIPs[1].ip}')"
+```
+
+"Network is unreachable", no default route, rules present, ping answers: that is this cluster's normal state. It proves the IPv6 pod network is fine and only the service address is unreachable from the host.
+
+**5. Did it stop? Paste in: the Homebridge UI terminal.**
+
+```bash
+grep -E 'ENOTFOUND|EAI_AGAIN|401|Unauthorized' /var/lib/homebridge/homebridge.log | tail -5
+```
+
+Nothing newer than the fix. Before the fix there was an error roughly every half hour, so a few quiet hours is good evidence.
+
+**Reading a long Homebridge log.** Most of it is Kasa polling. This hides the routine lines and counts what is left:
+
+```bash
+grep -viE 'Getting sys_info|Serializing device|Updated sys_info|getSysInfo HTTP|Skipping poll|Getting light info' /var/lib/homebridge/homebridge.log | sed -E 's/^\[[^]]+\] //' | sort | uniq -c | sort -rn | head -40
+```
+
+Do not search the log for "oom" without `-w`; it matches every line with "room" in it.
+
 # Part B. Lookup: symptom → cause → fix
 
 Everything that has gone wrong on this network, in one table per area. The linked page has the detail.
@@ -267,6 +349,14 @@ Everything that has gone wrong on this network, in one table per area. The linke
 | Axis cameras show no picture, ffmpeg exit code 8 | Unsupported URL parameters | Use the plain `axis-media/media.amp` URL |
 | Axis cameras buffer endlessly | `vcodec: copy` on the Axis stream | `libx264` settings in [08](08-homebridge.md) |
 | Config "verification warning" | The pasted JSON was cut off | Paste the whole block |
+| `getaddrinfo ENOTFOUND` / `EAI_AGAIN` for `api.wyzecam.com` or `api.honeywellhome.com`, a few times an hour | The host-network pod was given an IPv6 DNS address it cannot route to | The `dnsPolicy` / `dnsConfig` block in `Homebridge/values.yaml`. [08](08-homebridge.md) Step 1, A10 |
+| Resideo "Unauthorized Request", "status code 401", "Failed to refresh access token" | A token renewal hit a failed DNS lookup | Fix DNS first; it recovers at the next restart. Re-link only if it continues with no DNS errors. [08](08-homebridge.md) Step 6 |
+| Resideo settings page: "Config validation failed - you can still save your changes" | Unknown; the config loads and works | Close without saving |
+| Kasa `[Errno 113] Connect call failed`, `[Errno 111]`, "No sys_info returned ... Marking offline" for a short spell | The switch dropped off Wi-Fi or changed address. Common while the devices were being moved from 192.168.50.x to 192.168.101.x (1 to 5 October) | A4. Reserve the address ([08](08-homebridge.md) 5b). 192.168.101.201 (MB ceiling fan) was the worst |
+| "Could not (re-)create mDNS advertisement ... Local name collision" | The Avahi advertiser | mDNS advertiser: Ciao. [08](08-homebridge.md) Step 3 |
+| Camera "Failed to fetch snapshot" | Seen on both Axis cameras until 4 October, with the old 1080p settings | Current settings in [08](08-homebridge.md) Step 7; turn on the camera's `debug` if it returns |
+| "Homebridge process ended. Code: 143" many times | Clean restarts: config saves, UI restarts, the 05:00 schedule | Nothing. A crash would not be 143 |
+| helm: "error converting YAML to JSON: yaml: line N: did not find expected key" on `Homebridge/values.yaml` | A `#` comment at the left margin inside the `startup.sh: \|` script ends the script early | Indent every line of the script, comments included. Check with `helm template homebridge k8s-at-home/homebridge -n homebridge -f values.yaml > /dev/null && echo OK` |
 | Accessories stuck pairing | mDNS advertised on cluster interfaces | Network Interfaces: `eth0` only |
 
 ## Cluster
@@ -285,6 +375,9 @@ Everything that has gone wrong on this network, in one table per area. The linke
 | MetalLB controller CrashLoopBackOff | Wrong version | v0.15.3 |
 | `kubectl apply` of the MetalLB config: webhook error | Controller not ready | Wait, apply again |
 | MetalLB "Suspect … has failed"; Pi-hole IPv6 address keeps moving | Unexplained. Firewall gap or Mac VM | [10](10-firewall.md), [05](05-mac-node-lima.md) |
+| Cluster DNS stops when one node is down | CoreDNS back to one replica | Scale to three. [04](04-k3s-cluster.md) Step 8 |
+| `fd00:1234:5678:4300::a` answers nothing from any pod; IPv6 endpoint slice for `kube-dns` is `<unset>` | CoreDNS pod older than the dual-stack conversion, so IPv4-only | `rollout restart deployment coredns`. [04](04-k3s-cluster.md) Step 8 |
+| `fd00:1234:5678:4300::a` unreachable **from a node or a host-network pod** only: "Network is unreachable" | No route to the IPv6 service range on the host. Normal here | IPv4-only DNS block for that pod. [04](04-k3s-cluster.md) Step 8 |
 | SSH to a Pi froze after `nmcli con up` | DHCP gave it a new address | `ssh pi@fd00:1234:5678:50::7` from another Pi, then pin the address |
 | `limactl start`: sudoers out of sync | Sudoers generated too early | Regenerate. [05](05-mac-node-lima.md) |
 
@@ -307,3 +400,4 @@ Everything that has gone wrong on this network, in one table per area. The linke
 | --- | --- | --- |
 | A pasted multi-line command "is missing something" and sits at a `>` prompt | The closing `EOF` line was indented, so the shell never saw it | Every command block in this repo starts at the left margin. Press Ctrl+C and paste again from the file |
 | A helm upgrade removed settings | A partial values file was applied | Always apply the whole file from this repo |
+| A long one-line command pasted into the Homebridge UI terminal ran as garbage | It was pasted as several lines | Paste it as one line. The A10 test is written that way |

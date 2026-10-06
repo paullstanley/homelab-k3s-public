@@ -134,7 +134,7 @@ Without one, re-enter them in the GUI. DNS Director exceptions as last read on 2
 
 | Rule | Devices |
 | --- | --- |
-| User Defined 2 (1.1.1.1) | k3sprimary, DC-01 (`02:00:00:00:00:05`), MBP-Server-LAN, `02:00:00:00:00:06`, Owners-Work-Macbook, `02:00:00:00:00:07` |
+| User Defined 2 (1.1.1.1) | k3sprimary, DC-01 (`02:00:00:00:00:02`), MBP-Server-LAN, `02:00:00:00:00:03`, Owners-Work-Macbook, `02:00:00:00:00:04` |
 | User Defined 3 | Three devices (not recorded which) |
 
 ### The k3s nodes and DNS Director
@@ -145,8 +145,8 @@ Add all three to DNS Director as **User Defined 2** (or **No Redirection**):
 
 | Device | MAC |
 | --- | --- |
-| funkyfresh | `02:00:00:00:00:08` |
-| k3snode2 | `02:00:00:00:00:09` |
+| funkyfresh | `02:00:00:00:00:05` |
+| k3snode2 | `02:00:00:00:00:06` |
 | lima-k3s-mac | `52:55:55:15:F1:69` |
 
 I have not confirmed the redirect on your router. The check, on funkyfresh, while watching the Pi-hole query log: `nslookup example.com 1.1.1.1`. If the query shows up in Pi-hole, the node is being redirected.

@@ -51,8 +51,8 @@ Read from each Pi on 4 October 2026.
 | Revision code | `d03115` | `b03115` | `b03115` |
 | Serial | `<PI_SERIAL_1>` | `<PI_SERIAL_2>` | `<PI_SERIAL_3>` |
 | Hostname on the Pi | `k3sprimary` | `funkyFresh` (capital F; the node name is `funkyfresh`) | `k3snode2` |
-| Wired MAC (`eth0`) | `02:00:00:00:00:0a` | `02:00:00:00:00:08` | `02:00:00:00:00:09` |
-| Wi-Fi MAC (`wlan0`, unused) | `02:00:00:00:00:0b` | `02:00:00:00:00:0c` | `02:00:00:00:00:0d` |
+| Wired MAC (`eth0`) | `02:00:00:00:00:07` | `02:00:00:00:00:05` | `02:00:00:00:00:06` |
+| Wi-Fi MAC (`wlan0`, unused) | `02:00:00:00:00:08` | `02:00:00:00:00:09` | `02:00:00:00:00:0a` |
 | Boot and data disk | WD `WD20JDRW` 2 TB, USB. **This model is a spinning hard drive, not an SSD** | Crucial P310 500 GB NVMe in a USB enclosure | 500 GB NVMe in a Realtek RTL9210 USB enclosure |
 | Root filesystem | `/dev/sda2`, ext4, 2% used | `/dev/sda2`, ext4, 2% used | `/dev/sda2`, ext4, 1% used |
 | SD card | none | none | none |
@@ -103,45 +103,45 @@ Traefik serves its own self-signed certificate for the `home.example.com` names,
 
 | Address | Name in Pi-hole | Name on the router | Maker | MAC | Address from | Connected by |
 | --- | --- | --- | --- | --- | --- | --- |
-| 192.168.50.2 | `mbp-server-lan` | MBP-Server-LAN | Ugreen Group Limited | `02:00:00:00:00:0E` | Static | Wired |
-| 192.168.50.3 | `livingroomap` | livingRoomAP | TP-LINK TECHNOLOGIES CO.LTD. | `02:00:00:00:00:0F` | Static | Wired |
-| 192.168.50.4 | `officeap` | officeAP | MSFT 5.0 | `02:00:00:00:00:04` | DHCP | Wired |
-| 192.168.50.5 | `k3sprimary` | k3sprimary | Raspberry Pi Trading Ltd | `02:00:00:00:00:0A` | DHCP | Wired |
-| 192.168.50.6 | `funkyfresh` | funkyFresh | Raspberry Pi Trading Ltd | `02:00:00:00:00:08` | Static | Wired |
-| 192.168.50.8 | `pretty-pan` | Pretty Pan | Raspberry Pi Foundation | `02:00:00:00:00:10` | Static | Wired |
-| 192.168.50.16 | `dc01` | DC-01 | Dell Inc. | `02:00:00:00:00:05` | Static | Wired |
-| 192.168.50.17 | `ca01` | CA-01 | Dell Inc. | `02:00:00:00:00:11` | Static | Wired |
-| 192.168.50.25 | `ownersphone` | ownersPhone | Apple iPhone | `02:00:00:00:00:12` | DHCP | 5 GHz-1 |
-| 192.168.50.34 | (stale) | k3snode2, old DHCP lease; the Pi is really on .7 | Raspberry Pi Trading Ltd | `02:00:00:00:00:09` | DHCP | Wired |
-| 192.168.50.47 | `mainbedroomatv` | MainBedroomATV | Apple Inc. | `02:00:00:00:00:13` | DHCP | 5 GHz-1 |
-| 192.168.50.48 | `member3s-mini` | Member3s-Mini | Apple iPhone | `02:00:00:00:00:14` | DHCP | 5 GHz-1 |
-| 192.168.50.52 | `ps5` | ps5 | Sony Interactive Entertainment Inc. | `02:00:00:00:00:15` | Static | Wired |
-| 192.168.50.56 | `unknown-apple-56` | 02:00:00:00:00:01 | Apple Inc. | `02:00:00:00:00:01` | DHCP | Wired |
-| 192.168.50.57 | `soma-connect` | soma-connect | dhcpcd-8.1.2:Linux-5.10.17+:arm | `02:00:00:00:00:16` | DHCP | 2.4 GHz |
-| 192.168.50.69 | `backyard-camera` | WyzeCam | Wyze Labs Inc | `02:00:00:00:00:17` | DHCP | Wired |
-| 192.168.50.71 | `upstairs-thermostat` | Upstairs-Thermostat | dhcpcd-8.1.6:Linux-2.6.31-816-g | `02:00:00:00:00:18` | DHCP | 2.4 GHz |
-| 192.168.50.72 | `office-bulb` | Office-Bulb | Wyze Labs Inc | `02:00:00:00:00:19` | DHCP | 2.4 GHz |
-| 192.168.50.82 | `mbp-lan-dongle` | MBP-LAN-Dongle | IEEE Registration Authority | `02:00:00:00:00:1A` | DHCP | Wired |
-| 192.168.50.93 | `nintendo-switch` | Nintendo Co  Ltd | Nintendo Co.Ltd | `02:00:00:00:00:1B` | DHCP | 5 GHz-1 |
-| 192.168.50.94 | `living-room-atv` | Apple | Apple Inc. | `02:00:00:00:00:1C` | Static | Wired |
-| 192.168.50.103 | `roomba` | Roomba-31C7C41472024730 | AzureWave Technology Inc. | `02:00:00:00:00:1D` | DHCP | Wired |
-| 192.168.50.106 | `apple-watch` | Watch | Apple Inc. | `02:00:00:00:00:1E` | DHCP | 2.4 GHz |
-| 192.168.50.115 | `homepod-mini` | HomePod-Mini | Apple iPhone | `02:00:00:00:00:1F` | DHCP | 5 GHz-1 |
-| 192.168.50.116 | `member2siphone2` | Member2siPhone2 | Apple iPhone | `02:00:00:00:00:20` | DHCP | 5 GHz-1 |
-| 192.168.50.127 | `living-room-camera` | Axis Communications AB | Axis Communications AB | `02:00:00:00:00:21` | Static | Wired |
-| 192.168.50.129 | `unknown-apple-129` | 02:00:00:00:00:02 | Apple Inc. | `02:00:00:00:00:02` | DHCP | Wired |
-| 192.168.50.136 | `wiz-bulb` | wiz | WiZ IoT Company Limited | `02:00:00:00:00:22` | DHCP | Wired |
+| 192.168.50.2 | `mbp-server-lan` | MBP-Server-LAN | Ugreen Group Limited | `02:00:00:00:00:0B` | Static | Wired |
+| 192.168.50.3 | `livingroomap` | livingRoomAP | TP-LINK TECHNOLOGIES CO.LTD. | `02:00:00:00:00:0C` | Static | Wired |
+| 192.168.50.4 | `officeap` | officeAP | MSFT 5.0 | `02:00:00:00:00:01` | DHCP | Wired |
+| 192.168.50.5 | `k3sprimary` | k3sprimary | Raspberry Pi Trading Ltd | `02:00:00:00:00:07` | DHCP | Wired |
+| 192.168.50.6 | `funkyfresh` | funkyFresh | Raspberry Pi Trading Ltd | `02:00:00:00:00:05` | Static | Wired |
+| 192.168.50.8 | `pretty-pan` | Pretty Pan | Raspberry Pi Foundation | `02:00:00:00:00:0D` | Static | Wired |
+| 192.168.50.16 | `dc01` | DC-01 | Dell Inc. | `02:00:00:00:00:02` | Static | Wired |
+| 192.168.50.17 | `ca01` | CA-01 | Dell Inc. | `02:00:00:00:00:0E` | Static | Wired |
+| 192.168.50.25 | `ownersphone` | ownersPhone | Apple iPhone | `02:00:00:00:00:0F` | DHCP | 5 GHz-1 |
+| 192.168.50.34 | (stale) | k3snode2, old DHCP lease; the Pi is really on .7 | Raspberry Pi Trading Ltd | `02:00:00:00:00:06` | DHCP | Wired |
+| 192.168.50.47 | `mainbedroomatv` | MainBedroomATV | Apple Inc. | `02:00:00:00:00:10` | DHCP | 5 GHz-1 |
+| 192.168.50.48 | `member3s-mini` | Member3s-Mini | Apple iPhone | `02:00:00:00:00:11` | DHCP | 5 GHz-1 |
+| 192.168.50.52 | `ps5` | ps5 | Sony Interactive Entertainment Inc. | `02:00:00:00:00:12` | Static | Wired |
+| 192.168.50.56 | `unknown-apple-56` | 02:00:00:00:00:13 | Apple Inc. | `02:00:00:00:00:13` | DHCP | Wired |
+| 192.168.50.57 | `soma-connect` | soma-connect | dhcpcd-8.1.2:Linux-5.10.17+:arm | `02:00:00:00:00:14` | DHCP | 2.4 GHz |
+| 192.168.50.69 | `backyard-camera` | WyzeCam | Wyze Labs Inc | `02:00:00:00:00:15` | DHCP | Wired |
+| 192.168.50.71 | `upstairs-thermostat` | Upstairs-Thermostat | dhcpcd-8.1.6:Linux-2.6.31-816-g | `02:00:00:00:00:16` | DHCP | 2.4 GHz |
+| 192.168.50.72 | `office-bulb` | Office-Bulb | Wyze Labs Inc | `02:00:00:00:00:17` | DHCP | 2.4 GHz |
+| 192.168.50.82 | `mbp-lan-dongle` | MBP-LAN-Dongle | IEEE Registration Authority | `02:00:00:00:00:18` | DHCP | Wired |
+| 192.168.50.93 | `nintendo-switch` | Nintendo Co  Ltd | Nintendo Co.Ltd | `02:00:00:00:00:19` | DHCP | 5 GHz-1 |
+| 192.168.50.94 | `living-room-atv` | Apple | Apple Inc. | `02:00:00:00:00:1A` | Static | Wired |
+| 192.168.50.103 | `roomba` | Roomba-31C7C41472024730 | AzureWave Technology Inc. | `02:00:00:00:00:1B` | DHCP | Wired |
+| 192.168.50.106 | `apple-watch` | Watch | Apple Inc. | `02:00:00:00:00:1C` | DHCP | 2.4 GHz |
+| 192.168.50.115 | `homepod-mini` | HomePod-Mini | Apple iPhone | `02:00:00:00:00:1D` | DHCP | 5 GHz-1 |
+| 192.168.50.116 | `member2siphone2` | Member2siPhone2 | Apple iPhone | `02:00:00:00:00:1E` | DHCP | 5 GHz-1 |
+| 192.168.50.127 | `living-room-camera` | Axis Communications AB | Axis Communications AB | `02:00:00:00:00:1F` | Static | Wired |
+| 192.168.50.129 | `unknown-apple-129` | 02:00:00:00:00:20 | Apple Inc. | `02:00:00:00:00:20` | DHCP | Wired |
+| 192.168.50.136 | `wiz-bulb` | wiz | WiZ IoT Company Limited | `02:00:00:00:00:21` | DHCP | Wired |
 | 192.168.50.146 | `lima-k3s-mac` | lima-k3s-mac | Loading manufacturer.. | `52:55:55:15:F1:69` | DHCP | Wired |
-| 192.168.50.149 | `mb-homepod-mini` | MB-Home-Pod-mini | Apple TV | `02:00:00:00:00:23` | DHCP | 5 GHz-1 |
-| 192.168.50.153 | `ipad` | iPad | Apple iPhone | `02:00:00:00:00:24` | DHCP | 5 GHz-1 |
-| 192.168.50.157 | `tuya-157` | wlan0 | Tuya Smart Inc. | `02:00:00:00:00:25` | DHCP | 2.4 GHz |
-| 192.168.50.159 | `owners-work-macbook` | Owners-Work-Macbook | Apple Inc. | `02:00:00:00:00:26` | DHCP | 5 GHz-2 |
-| 192.168.50.173 | `axisdvr` | axisDVR | Axis Communications AB | `02:00:00:00:00:27` | DHCP | Wired |
-| 192.168.50.209 | `entrance-camera` | Axis Communications AB | Axis Communications AB | `02:00:00:00:00:28` | Static | Wired |
-| 192.168.50.210 | `downstairs-thermostat` | downstairsThermostat | Resideo | `02:00:00:00:00:29` | DHCP | Wired |
-| 192.168.50.213 | `doorbell` | doorBell | Logitech | `02:00:00:00:00:2A` | DHCP | 2.4 GHz |
-| 192.168.50.214 | `smart-innovation-214` | Smart Innovation LLC | Smart Innovation LLC | `02:00:00:00:00:2B` | DHCP | Wired |
-| 192.168.50.216 | `unknown-216` | 02:00:00:00:00:03 | Microsoft Corp. | `02:00:00:00:00:03` | Static | 5 GHz-1 |
+| 192.168.50.149 | `mb-homepod-mini` | MB-Home-Pod-mini | Apple TV | `02:00:00:00:00:22` | DHCP | 5 GHz-1 |
+| 192.168.50.153 | `ipad` | iPad | Apple iPhone | `02:00:00:00:00:23` | DHCP | 5 GHz-1 |
+| 192.168.50.157 | `tuya-157` | wlan0 | Tuya Smart Inc. | `02:00:00:00:00:24` | DHCP | 2.4 GHz |
+| 192.168.50.159 | `owners-work-macbook` | Owners-Work-Macbook | Apple Inc. | `02:00:00:00:00:25` | DHCP | 5 GHz-2 |
+| 192.168.50.173 | `axisdvr` | axisDVR | Axis Communications AB | `02:00:00:00:00:26` | DHCP | Wired |
+| 192.168.50.209 | `entrance-camera` | Axis Communications AB | Axis Communications AB | `02:00:00:00:00:27` | Static | Wired |
+| 192.168.50.210 | `downstairs-thermostat` | downstairsThermostat | Resideo | `02:00:00:00:00:28` | DHCP | Wired |
+| 192.168.50.213 | `doorbell` | doorBell | Logitech | `02:00:00:00:00:29` | DHCP | 2.4 GHz |
+| 192.168.50.214 | `smart-innovation-214` | Smart Innovation LLC | Smart Innovation LLC | `02:00:00:00:00:2A` | DHCP | Wired |
+| 192.168.50.216 | `unknown-216` | 02:00:00:00:00:2B | Microsoft Corp. | `02:00:00:00:00:2B` | Static | 5 GHz-1 |
 | 192.168.50.247 | `homepod-mini-2` | HomePod-Mini-2 | Apple iPhone | `02:00:00:00:00:2C` | DHCP | 5 GHz-1 |
 | 192.168.50.254 | `iphone-254` | iPhone | Apple Inc. | `02:00:00:00:00:2D` | DHCP | 5 GHz-1 |
 | 192.168.101.5 | `foyer-lights` | Foyer-Lights | TP-LINK TECHNOLOGIES CO.LTD. | `02:00:00:00:00:2E` | DHCP | 2.4 GHz Guest Network - 1 |

@@ -134,11 +134,15 @@ Rules for the public copy:
 
 The September runbook also recorded that one password was shared by Pi-hole, Wyze, Kasa and the cameras, and that a Wyze API key and the cluster's admin kubeconfig key had been pasted into a chat. The k3s join token was pasted into a chat on 3 October.
 
+**On 6 October 2026 the whole Homebridge `config.json` was pasted into a chat** while troubleshooting, and the Resideo block a second time. It held: the login for both Axis cameras, the Wyze camera's RTSP login, the Wyze account password with its API key and key ID, the TP-Link/Kasa account password, and the Resideo consumer key, consumer secret, access token and refresh token. The camera, Wyze and Kasa entries all used one password (two spellings of it). Treat every one as read, and give each service its own password this time.
+
 | What | How |
 | --- | --- |
+| Axis camera logins, Wyze camera RTSP login | Each camera's own settings; then the `source` lines in the Camera FFmpeg plugin config |
+| Resideo consumer secret and tokens | Resideo developer site: regenerate the app's secret. Put the new key and secret in the plugin and link the account again ([08](08-homebridge.md) Step 6) |
 | Pi-hole admin password | [07](07-pihole.md), Step 2 |
 | Anything else that used the same password: Wyze account, TP-Link/Kasa account, camera logins | Each service's own settings; then update the Homebridge plugin configs |
-| Wyze API key | Wyze developer console: delete the key, create a new one, update the plugin |
+| Wyze API key | Wyze developer console: delete the key, create a new one, update the plugin. Pasted again on 6 October |
 | k3s join token | [04](04-k3s-cluster.md), "Rotating the join token" |
 | Cluster admin certificate (kubeconfig) | `sudo k3s certificate rotate` on each server, one at a time, restarting k3s after each. Not run here; read the k3s certificate documentation first |
 

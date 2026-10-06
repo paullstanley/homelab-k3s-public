@@ -16,7 +16,10 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | DNS Director "User Defined 3" still points at 192.168.50.5 | That address no longer answers DNS. Any device on that rule has no DNS. [02](02-router-xt8.md) |
 | Router DHCP DNS Server 1 | It was changed during troubleshooting. Set it back to 192.168.50.11 |
 | Reserve 192.168.50.146 for the Mac VM | MAC `52:55:55:15:F1:69`. It is an etcd member on a DHCP address |
-| Reserve every Kasa device's address | [01](01-inventory.md). All are "Automatic IP" in the client list |
+| Reserve every Kasa device's address | [01](01-inventory.md). All are "Automatic IP" in the client list. Still open on 6 October; the 1 to 5 October log shows what an address change costs |
+| Rotate what was pasted into a chat on 6 October | The whole Homebridge `config.json`. [13](13-backups-and-secrets.md), "Rotate these" |
+| Re-read the Homebridge log for DNS errors | The fix went in at 09:13 on 6 October and was clean at the last look. Check again after a day: [08](08-homebridge.md), "Check it" |
+| Check CoreDNS is still three replicas after the next k3s upgrade | [04](04-k3s-cluster.md) Step 8. Set by command, not by a file |
 | Take the backups | [13](13-backups-and-secrets.md). None of them is known to exist yet |
 | Add funkyfresh, k3snode2 and the Mac VM to DNS Director | So their own DNS does not depend on Pi-hole. [02](02-router-xt8.md) |
 
@@ -26,7 +29,15 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | --- | --- |
 | Pi-hole login | Working from the phone and, after the placement and firewall fixes, from the work Mac. Which of those two fixes cured the Mac was not separated |
 | `matchLabelKeys` placement fix | In the values file; not yet exercised by an upgrade |
-| Axis camera settings | The last `libx264` config was given; result not reported |
+| Axis camera settings | The `libx264` 720p config is in the live file (6 October) and the snapshot errors stopped on 4 October. Picture quality still not reported |
+| Resideo after the DNS fix | Recovered by itself at 09:13 on 6 October. Token renewals happen through the day, so one clean day is the real test. [08](08-homebridge.md) Step 6 |
+| Resideo "Config validation failed" on the plugin settings page | The config works. Which rule it fails was not found (hover over the underlined `credentials` to read it) |
+| Re-linking Resideo by blanking the two tokens | Suggested, not tried. [08](08-homebridge.md) Step 6 |
+| IPv6 route to the service range on the nodes | `sudo ip -6 route add fd00:1234:5678:4300::/112 dev cni0` would let host-network pods use the IPv6 cluster DNS address. Not applied, not tested, not needed while Homebridge has its DNS block. [04](04-k3s-cluster.md) Step 8 |
+| Other pods older than the dual-stack conversion | Only CoreDNS was checked and restarted. The listing command is in [04](04-k3s-cluster.md) Step 8 |
+| CoreDNS replica count across a k3s upgrade | Believed to persist; not yet seen to |
+| MB ceiling fan, 192.168.101.201 | Timed out far more than any other Kasa device from 1 to 5 October. Weak Wi-Fi suspected, not confirmed |
+| Seven failed Homebridge UI logins, 3 and 4 October | Assumed to be you |
 | Failover | No node has been rebooted to test it. [12](12-verification.md) |
 | Host firewall | Active on the three Pis, patched by hand to allow 192.168.0.0/16. Mac VM not checked. The IPv6 gap in [10](10-firewall.md) is still open |
 | A second IPv6 range on the LAN | `fd00:aaaa:bbbb:cccc::/64` on every Pi, not from the XT8. Probably a Thread border router. Source not confirmed |
@@ -37,7 +48,7 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | Lima VM creation steps and `k3s/lima/k3s-mac.yaml` | Reconstructed, not copied from the Mac. Replace the file with `~/.lima/k3s-mac/lima.yaml` |
 | Mac VM autostart | `limactl autostart enable --condition=boot k3s-mac` not run yet |
 | Seerr helm repo address | Not recorded. [09](09-seerr-and-cloudflare.md) Step 1 |
-| Homebridge `values.yaml` without the `npm install` lines | I recommended removing them; I do not know whether the live file has them. Plugins already installed are unaffected either way |
+| Homebridge live `values.yaml` against this repo's | Seen on 6 October. The `npm install` lines are comments in both. The live file still sets `PUID`, `PGID` and `HOMEBRIDGE_CONFIG_UI` and has fewer comments; otherwise the same, DNS block included. Applying this repo's file has not been done since |
 | Traefik pinned to 192.168.50.12 | It got .12 by being second in line. The pinning annotation in [06](06-load-balancers.md) is untested here |
 | Token rotation, certificate rotation, `--cluster-reset` | Commands from the k3s documentation, not run here |
 | September router recommendations | Roaming assistant -70 dBm, AiProtection off, weekly reboot: unknown whether applied |
@@ -49,7 +60,7 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | --- | --- |
 | Portainer and ArgoCD | The September runbook listed them on 192.168.50.12 and .13. On 4 October the only LoadBalancer Services were Pi-hole and Traefik. I do not know whether they are still installed. The `portainer/` folder and `Ingresses/traefik/argocd.yaml` are unchanged templates |
 | Resideo fix | You fixed it yourself; what changed is not recorded. [08](08-homebridge.md) Step 6 |
-| The exact Wyze camera stream URL | [08](08-homebridge.md) Step 7 |
+| ~~The exact Wyze camera stream URL~~ | Seen on 6 October; the example file matches. [08](08-homebridge.md) Step 7 |
 | DNS Director's per-device list | Last read 24 September; changed since |
 | IPv6 DNS setting on dc01 and ca01 | Never recorded |
 | AX21 settings | Not re-checked |
@@ -73,4 +84,6 @@ Things that are not finished, not verified, or that I could not confirm from wha
 - Wildcard certificate for `*.home.example.com` (cert-manager, Cloudflare DNS challenge), to remove the browser warning.
 - cloudflared inside the cluster, two replicas.
 - Pin the Pi-hole and Homebridge image tags instead of `latest`.
+- Drop the `apt-get` line from the Homebridge startup script if the image's own ffmpeg turns out to be enough. It needs working DNS and slows every start.
+- Save a copy of the `k8s-at-home/homebridge` chart into this repo; the chart repository is archived.
 - A second Pi-hole outside the cluster as the router's DNS Server 2, to cover the whole cluster being down.

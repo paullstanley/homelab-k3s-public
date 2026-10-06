@@ -246,9 +246,9 @@ dnsmasq:
     - 192.168.50.214   smart-innovation-214 smart-innovation-214.home.example.com    # [dhcp] unidentified
 
     # --- Unidentified (private/randomised MAC addresses) - rename once you know what they are ----
-    - 192.168.50.56    unknown-apple-56 unknown-apple-56.home.example.com        # [dhcp]   MAC 02:00:00:00:00:01
-    - 192.168.50.129   unknown-apple-129 unknown-apple-129.home.example.com      # [dhcp]   MAC 02:00:00:00:00:02
-    - 192.168.50.216   unknown-216 unknown-216.home.example.com                  # [static] MAC 02:00:00:00:00:03
+    - 192.168.50.56    unknown-apple-56 unknown-apple-56.home.example.com        # [dhcp]   MAC 02:00:00:00:00:13
+    - 192.168.50.129   unknown-apple-129 unknown-apple-129.home.example.com      # [dhcp]   MAC 02:00:00:00:00:20
+    - 192.168.50.216   unknown-216 unknown-216.home.example.com                  # [static] MAC 02:00:00:00:00:2B
 
     # --- In the previous file but not in the 4 Oct client list (offline, or address changed) -----
     - 192.168.50.74    henge-docks-llc henge-docks-llc.home.example.com

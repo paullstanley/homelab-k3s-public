@@ -19,6 +19,63 @@ sudo kubectl -n homebridge get pods -o wide
 
 The pod must land on k3sprimary. Its volume is a `local-path` folder on that Pi, so once created it cannot move by itself.
 
+To watch a redeploy finish:
+
+```bash
+sudo kubectl -n homebridge rollout status deployment homebridge
+```
+
+The live copy of the values file is `~/helm/homebridge/values.yaml` on k3sprimary. It was replaced with this repo's DNS block on 6 October; keep the two the same.
+
+### The DNS block in the values file (required)
+
+`Homebridge/values.yaml` sets `dnsPolicy: None` and a `dnsConfig` with **one** name server, `10.43.0.10`, and `ndots: 1`. Do not remove it.
+
+Why. With `hostNetwork: true` and no DNS block, the pod's `/etc/resolv.conf` looked like this:
+
+```
+search homebridge.svc.cluster.local svc.cluster.local cluster.local home.example.com
+nameserver 10.43.0.10
+nameserver fd00:1234:5678:4300::a
+options ndots:5
+```
+
+Both name servers are the cluster DNS Service (CoreDNS), once per address family. A host-network pod uses k3sprimary's own routing table, and k3sprimary has no route to the IPv6 service range `fd00:1234:5678:4300::/112`: the IPv6 here is local-only, so there is deliberately no IPv6 default route. `ip -6 route get fd00:1234:5678:4300::a` on k3sprimary answers "Network is unreachable". So the second name server could never be reached, and every time a lookup on the first was slow or lost, the lookup failed.
+
+What it looked like in the Homebridge log, 3 to 6 October, a few times an hour:
+
+```
+[Wyze] Error getting devices: Error: getaddrinfo ENOTFOUND api.wyzecam.com
+[Wyze] [Plugin] Refresh failed: Error: getaddrinfo EAI_AGAIN api.wyzecam.com
+[Resideo] ... failed to pushChanges, Error Message: "getaddrinfo ENOTFOUND api.honeywellhome.com"
+[Resideo] ... failed to refreshStatus, Unauthorized Request
+[Resideo] ... failed to pushChanges, Error Message: "Request failed with status code 401"
+[Resideo] Failed to refresh access token
+```
+
+The Resideo 401 lines were a knock-on effect: the plugin renews its token through the day, and a renewal that hit a failed lookup left it unauthorised until the next good one. They stopped with the DNS errors; the account did **not** need re-linking.
+
+Ordinary pods (not `hostNetwork`) are not affected. They have their own default route out through the node.
+
+**Check it. Paste in: the Homebridge UI terminal** (the pod's own shell).
+
+```bash
+cat /etc/resolv.conf
+for i in $(seq 1 20); do getent hosts api.wyzecam.com >/dev/null && echo ok || echo FAIL; done | sort | uniq -c
+```
+
+One `nameserver 10.43.0.10` line, no `fd00:` line, `options ndots:1`, and `20 ok`.
+
+**Paste on: k3sprimary.**
+
+```bash
+sudo kubectl -n homebridge get pod -o jsonpath='{.items[0].spec.dnsPolicy}{"\n"}'
+```
+
+Prints `None`.
+
+The cluster side of this (CoreDNS with three replicas, each with an IPv6 address) is in [04](04-k3s-cluster.md) Step 8. How it was tracked down, step by step: [14](14-troubleshooting.md) A10.
+
 ## Step 2. Restore the backup
 
 Open `http://192.168.50.5:8581`, finish the first-run screen, then **Settings → Backup → Restore** and choose the backup archive. That brings back `config.json`, the plugins and the HomeKit pairing, and you can skip to "Check it".
@@ -36,7 +93,9 @@ Without a backup, carry on with Steps 3 to 7 and re-pair every bridge in the Hom
 | Host IP | `0.0.0.0` | Traefik reaches the UI over the pod network |
 | Reverse Proxy Hostname | `hb.home.example.com` | So the UI accepts requests arriving under that name |
 | Network Interfaces (mDNS) | `eth0` only | `flannel-v6.1`, `flannel.1` and `cni0` off. Advertising HomeKit on the cluster's internal interfaces is useless and confused discovery |
-| mDNS advertiser | leave at the default | |
+| mDNS advertiser | **Ciao** | The live setting on 6 October. On 1 October the log had three "Could not (re-)create mDNS advertisement ... DBusInvokeError: Local name collision" lines, which come from the Avahi advertiser; none since |
+| Homebridge port | 51192 | The main bridge. Each child bridge has its own port in its `_bridge` block |
+| Scheduled restart | 05:00 every day (`0 5 * * *`) | Explains the clean restart in the log every morning |
 
 Then the UI is at `https://hb.home.example.com` (no port; `http://` redirects). `http://192.168.50.5:8581` keeps working as the fallback.
 
@@ -76,7 +135,7 @@ Discovery is a broadcast and broadcasts do not cross from one network to the oth
 
 `enableCredentials` with the TP-Link/Kasa account email and password is required for newer devices. On 4 October the log showed `AuthenticationError (host=192.168.101.116)` for the living-room ceiling fan: that is a device that wants credentials and did not get valid ones. The fan was added on the next start, so check it responds; if it does not, re-enter the account in the plugin settings.
 
-`pollingInterval: 5` and `waitTimeUpdate: 100` are the values in use. If devices time out under load, 15 and 1000 give more headroom.
+`pollingInterval: 15` and `waitTimeUpdate: 1000` are the values in use (read from the live config on 6 October; the example file matches). They were 5 and 100 earlier.
 
 ### 5d. The router rules
 
@@ -123,6 +182,12 @@ The plugin links to your Resideo/Honeywell account with a login flow started fro
 
 - Callback URL registered in the Resideo developer app: `<FILL IN>`
 
+**"Unauthorized Request" / 401 in the log is not always a broken link.** From 4 to 6 October these were caused by the pod's DNS failing while the plugin renewed its token (Step 1, "The DNS block"). Check for `getaddrinfo` errors around the same time first. On 6 October the plugin recovered by itself at the next restart: "Total Locations Found: 1", "Total Devices Found at Home: 1", no errors after.
+
+Re-link only if 401s continue with no DNS errors near them. The plugin's settings page shows "Your Resideo account has been linked" and no link button whenever tokens are present, working or not. Blanking `accessToken` and `refreshToken` (keep the consumer key and secret), saving and reopening the settings should bring the button back. **Not tested here.** Homebridge keeps config backups under Settings if it needs undoing.
+
+The settings page also shows "Config validation failed - you can still save your changes", with `credentials` underlined, on a config that loads and works. Which rule it objects to was not found. Closing without saving is fine.
+
 ## Step 7. Cameras
 
 Config in [`Homebridge/config-examples/camera-ffmpeg.json`](../Homebridge/config-examples/camera-ffmpeg.json).
@@ -139,9 +204,11 @@ Config in [`Homebridge/config-examples/camera-ffmpeg.json`](../Homebridge/config
 | --- | --- |
 | Extra Axis URL parameters and a separate snapshot URL | ffmpeg exited with code 8; no picture |
 | `vcodec: copy` | Picture, but very slow and mostly buffering |
-| `libx264` at 1280×720, 15 fps, 2000 kbps (current) | **Result not reported.** If it is poor, fall back to your original: 1920×1080, 20 fps, max bitrate 150000, `forceMax` true, `videoFilter` none, `mapvideo` 0 |
+| `libx264` at 1280×720, 15 fps, 2000 kbps (current) | In the live config on 6 October. The log from 1 to 3 October still showed streams starting at "1920 x 1080, 20 fps, 150000 kbps" (the old settings) with "Failed to fetch snapshot" errors on both Axis cameras; the last such error was 4 October 12:44. Picture quality with the new settings **still not reported**. Fallback is the original: 1920×1080, 20 fps, max bitrate 150000, `forceMax` true, `videoFilter` none, `mapvideo` 0 |
 
-The Wyze entry's `source` line in the example uses the usual Wyze RTSP form. Check it against your live config before trusting it; I only have the address, not your exact URL.
+The Wyze entry in the example now matches the live config: `rtsp://<user>:<password>@192.168.50.69/live`, with the still image taken from the same stream (`-vframes 1 -r 1`).
+
+If snapshot errors come back, turn on `debug` for that camera in the plugin settings so the log shows the real ffmpeg error.
 
 **Bridged or unbridged.** The cameras are bridged on the main bridge (no `unbridge` setting), so they did not need re-pairing. The plugin's authors recommend unbridged cameras for performance. If you switch, each camera is added to the Home app separately with the bridge's PIN, and the old tiles must be removed first.
 
@@ -150,10 +217,23 @@ The Wyze entry's `source` line in the example uses the usual Wyze RTSP form. Che
 - `https://hb.home.example.com` loads, and `http://hb.home.example.com` redirects to it.
 - The status page shows every child bridge running.
 - A Kasa switch toggles from the Home app.
+- In the Homebridge UI terminal, `cat /etc/resolv.conf` shows only `nameserver 10.43.0.10` (Step 1).
+- No new DNS or login errors in the log. In the Homebridge UI terminal:
+
+```bash
+grep -E 'ENOTFOUND|EAI_AGAIN|401|Unauthorized' /var/lib/homebridge/homebridge.log | tail -5
+```
+
+Nothing newer than the last redeploy. (The fix went in at 09:13 on 6 October 2026.)
+
 - Each camera shows a live picture within a few seconds.
 
 ## Known leftovers
 
 - The pod installs `ffmpeg` with `apt-get` at every start. If the package servers are unreachable the pod still starts, with whatever ffmpeg the image has.
-- `PUID`, `PGID` and `HOMEBRIDGE_CONFIG_UI` were removed from the values file; the current image ignores them.
-- The image tag is `latest`. `ghcr.io/oznu/homebridge` is the older image name; the project now publishes as `homebridge/homebridge`. It works today. If a pull ever fails, that is the first thing to change.
+- `PUID`, `PGID` and `HOMEBRIDGE_CONFIG_UI` are not in this repo's values file; the current image ignores them. The live file on k3sprimary still had all three on 6 October. Harmless either way.
+- The image is `ghcr.io/homebridge/homebridge` (the project's current name; the live file already used it, so this repo's file was changed from `ghcr.io/oznu/homebridge` on 6 October). The tag is still `latest` with `IfNotPresent`, so the version is whatever the node last pulled. Pin a version to make restarts predictable.
+- The k8s-at-home chart repository is archived. `helm upgrade` still fetched the chart on 6 October. If it ever cannot, the same change can be made straight on the Deployment with `kubectl patch`, and the chart should then be saved into this repo.
+- The log prints an AWS SDK v2 end-of-support notice at every start. It comes with the Wyze plugin and needs nothing.
+- Seven "Failed login attempt" lines from the UI on 3 and 4 October. Assumed to be you. The UI is only reachable inside the house (Traefik on .12, not the Cloudflare tunnel).
+- Every restart in the 1 to 6 October log was a clean one (exit code 143): config saves, UI restarts and the 05:00 schedule. No crashes and no out-of-memory kills.

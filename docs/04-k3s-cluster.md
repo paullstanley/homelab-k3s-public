@@ -239,6 +239,61 @@ sudo k3s etcd-snapshot save --name fresh-build
 
 Snapshots land in `/var/lib/rancher/k3s/server/db/snapshots/` on the node where you ran it.
 
+## Step 8. CoreDNS: three replicas
+
+k3s installs cluster DNS (CoreDNS, the `kube-dns` Service on `10.43.0.10` and `fd00:1234:5678:4300::a`) as **one** pod. If that pod's node is down, nothing in the cluster resolves names. Scale it to three so it does not depend on one machine.
+
+**Paste on: k3sprimary.**
+
+```bash
+sudo kubectl -n kube-system scale deployment coredns --replicas=3
+sudo kubectl -n kube-system get pods -l k8s-app=kube-dns -o wide
+sudo kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.status.podIPs}{"\n"}{end}'
+sudo kubectl -n kube-system get endpointslices -l kubernetes.io/service-name=kube-dns
+```
+
+Pass: three pods `Running` on different nodes, at least one on a Pi; every pod has **two** addresses (a `10.42.x.x` and an `fd00:1234:5678:42xx::` one); both endpoint slices (IPv4 and IPv6) list endpoints.
+
+On 6 October 2026 they landed on lima-k3s-mac, k3sprimary and k3snode2.
+
+Notes:
+
+- CoreDNS is managed by k3s, not by a file in this repo, so this is a command and not a manifest. The replica count has survived so far, but **check it after every k3s upgrade or reinstall** and run the scale command again if it is back to one.
+- CoreDNS forwards outside names to the node's own `/etc/resolv.conf` (1.1.1.1 and 9.9.9.9, Step 2), not to Pi-hole.
+- Its log is full of `[WARNING] No files matching import glob pattern: /etc/coredns/custom/*.override`. That is normal: no custom config is installed.
+
+### A CoreDNS pod older than the dual-stack conversion has no IPv6 address
+
+Found on 6 October. The single CoreDNS pod was 245 days old, older than the September dual-stack conversion, so it had only `10.42.0.234`. The IPv6 endpoint slice for `kube-dns` was empty and `fd00:1234:5678:4300::a` answered nothing. Pods are only given addresses when they are created, so the cure is to recreate it:
+
+```bash
+sudo kubectl -n kube-system rollout restart deployment coredns
+sudo kubectl -n kube-system rollout status deployment coredns
+```
+
+Cluster DNS drops for a few seconds. On a cluster built fresh from these files this does not arise. After any single-stack to dual-stack conversion, list every pod's addresses and restart the ones with only one:
+
+```bash
+sudo kubectl get pods -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,IPS:.status.podIPs
+```
+
+### Host-network pods cannot reach IPv6 service addresses
+
+A pod with `hostNetwork: true` uses its node's routing table. The nodes have routes for the IPv6 **pod** ranges (`fd00:1234:5678:4200::/56`, through `flannel-v6.1` and `cni0`) but none for the IPv6 **service** range (`fd00:1234:5678:4300::/112`), and no IPv6 default route, because IPv6 here is local-only.
+
+```bash
+ip -6 route get fd00:1234:5678:4300::a
+ip -6 route show default
+```
+
+The first answers "Network is unreachable"; the second prints nothing. That is the expected state, not a fault. The forwarding rules for the service address are present (`sudo ip6tables-save | grep -i '4300::a'`), but the kernel refuses the packet before they are consulted.
+
+What this means in practice:
+
+- Ordinary pods are fine; they have a default route through the node.
+- A host-network pod that is given the cluster's DNS addresses gets one it cannot reach. **Homebridge is the only host-network app here**, and its values file works around it by using the IPv4 DNS address only ([08](08-homebridge.md) Step 1). Any future host-network app needs the same `dnsPolicy` / `dnsConfig` block.
+- A cluster-wide alternative is a route for the service range on every node, `sudo ip -6 route add fd00:1234:5678:4300::/112 dev cni0`, made permanent in each node's network config. **Not applied and not tested here**; listed in [15](15-open-items.md).
+
 ## Check it
 
 ```bash
@@ -260,6 +315,7 @@ The live cluster was not built fresh. It started as one server on SQLite with ag
 | SQLite to etcd on k3sprimary would have been skipped | A leftover `server/db/etcd` folder existed next to the live `state.db`; k3s starts from it and skips migration | Stop k3s, back up `server/db`, move the `etcd` folder away, add `cluster-init: true`, start k3s. Look for "Migrating content from sqlite to etcd" in the log |
 | k3snode2 would not start as a server: "… newer than datastore and could cause a cluster outage" | The Pi had once been a server and still had `/var/lib/rancher/k3s/server` | `sudo mv /var/lib/rancher/k3s/server /root/k3s-server-old`, then install again |
 | Pi-hole jumped from .11 to .5 after a k3s restart | The built-in k3s load balancer (servicelb) and MetalLB were both running; the restart let servicelb win | `disable: servicelb` on **every** server ([06](06-load-balancers.md)) |
+| Homebridge plugins logged `getaddrinfo ENOTFOUND` / `EAI_AGAIN` from 3 October, found 6 October | Two things. The CoreDNS pod predated dual-stack and had no IPv6 address; and a host-network pod cannot reach the IPv6 service address at all | Restart CoreDNS, scale it to three (Step 8); IPv4-only DNS block in `Homebridge/values.yaml` ([08](08-homebridge.md) Step 1) |
 | My `findmnt -no SOURCE /var/lib/rancher` printed nothing | The path is not a mount point; it needs `-T` | `findmnt -no SOURCE -T /var/lib/rancher` |
 
 Turning an agent into a server in place:

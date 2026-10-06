@@ -32,6 +32,8 @@ sudo kubectl get svc -A | grep LoadBalancer
 sudo kubectl get pods -n kube-system | grep svclb
 sudo kubectl -n pihole get pods -o wide
 sudo kubectl --server https://192.168.50.10:6443 get nodes
+sudo kubectl -n kube-system get pods -l k8s-app=kube-dns -o wide
+sudo kubectl -n kube-system get endpointslices -l kubernetes.io/service-name=kube-dns
 ```
 
 | Pass |
@@ -42,6 +44,8 @@ sudo kubectl --server https://192.168.50.10:6443 get nodes
 | Fourth command prints nothing (servicelb is off) |
 | Three Pi-hole pods, one per Pi, `2/2` |
 | The API answers on the floating address |
+| Three CoreDNS pods `Running`, on different nodes, at least one on a Pi ([04](04-k3s-cluster.md) Step 8) |
+| Both `kube-dns` endpoint slices (IPv4 and IPv6) list endpoints, not `<unset>` |
 
 ## Apps
 
@@ -50,6 +54,8 @@ sudo kubectl --server https://192.168.50.10:6443 get nodes
 | `https://pihole.home.example.com/admin` | Loads; login **stays** logged in after clicking around |
 | `http://pihole.home.example.com/admin` | Redirects to https |
 | `https://hb.home.example.com` | Loads; all child bridges running |
+| Homebridge UI terminal: `cat /etc/resolv.conf` | One name server, `10.43.0.10`; `options ndots:1`; no `fd00:` line ([08](08-homebridge.md) Step 1) |
+| Homebridge UI terminal: `grep -E 'ENOTFOUND\|EAI_AGAIN\|401\|Unauthorized' /var/lib/homebridge/homebridge.log \| tail -5` | Nothing newer than the last redeploy |
 | Toggle a Kasa switch in the Home app | Works within a second or two |
 | `ping -c 3 192.168.101.201` from k3sprimary | Replies |
 | Each camera in the Home app | Live picture |
