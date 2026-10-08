@@ -1,0 +1,101 @@
+# Homebridge. Chart: k8s-at-home/homebridge   Namespace: homebridge   Runs on server-1.
+#
+#   helm repo add k8s-at-home https://k8s-at-home.com/charts/
+#   helm repo update
+#   sudo kubectl create ns homebridge
+#   sudo kubectl apply -f files/traefik/middleware-redirect-https.yaml
+#   helm upgrade --install homebridge k8s-at-home/homebridge -n homebridge -f files/homebridge/values.yaml
+#
+# Full steps, UI settings, Kasa and camera setup: docs/apps/homebridge.md
+# The live copy is ~/helm/homebridge/values.yaml on server-1. Keep the two the same.
+# NOT highly available on purpose: HomeKit pairs with one bridge identity stored on one volume.
+
+image:
+  # The project's current image name (the live file uses it). ghcr.io/oznu/homebridge is the old one.
+  repository: ghcr.io/homebridge/homebridge
+  tag: "latest"
+  # IfNotPresent: the pod can restart without reaching the registry (and without DNS).
+  pullPolicy: IfNotPresent
+
+env:
+  TZ: America/New_York
+
+service:
+  main:
+    ports:
+      http:
+        port: 8581
+
+# Required. HomeKit discovery (mDNS) and the accessory ports only work on the node's own
+# network, so the pod uses server-1's network directly (192.168.50.5).
+hostNetwork: true
+
+# Required because of hostNetwork. Do not remove.
+# Left alone, the pod is given TWO cluster DNS addresses: 10.43.0.10 and fd00:1234:5678:4300::a.
+# A host-network pod uses server-1's own routing table, and server-1 has no route to the
+# IPv6 one (local-only IPv6, so no IPv6 default route). Every time the IPv4 lookup was slow the
+# resolver fell back to an address it could not reach, and the plugins logged
+# "getaddrinfo ENOTFOUND" / "EAI_AGAIN" (Wyze, Resideo), followed by Resideo 401 errors.
+# This block gives the pod the IPv4 address only. ndots 1 (instead of the default 5) stops
+# every outside name being tried against the four search domains first.
+# 10.43.0.10 is the kube-dns Service: sudo kubectl -n kube-system get svc kube-dns
+# Full write-up: docs/apps/homebridge.md, docs/kubernetes/coredns.md.
+dnsPolicy: None
+dnsConfig:
+  nameservers:
+    - 10.43.0.10
+  searches:
+    - homebridge.svc.cluster.local
+    - svc.cluster.local
+    - cluster.local
+    - home.example.com
+  options:
+    - name: ndots
+      value: "1"
+
+# Web UI: https://hb.home.example.com through Traefik (192.168.50.12), no port number.
+# In the Homebridge UI, "Enable HTTPS" must stay OFF - Traefik does the HTTPS. Turning it on
+# gives "Bad Gateway".
+ingress:
+  main:
+    enabled: true
+    primary: true
+    ingressClassName: "traefik"
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      # http:// -> https://
+      traefik.ingress.kubernetes.io/router.middlewares: homebridge-redirect-https@kubernetescrd
+    hosts:
+      - host: hb.home.example.com
+        paths:
+          - path: /
+
+# Everything Homebridge knows (config.json, plugins, HomeKit pairing) lives on this volume,
+# which is a folder on server-1's disk. Back it up from the UI (docs/operations/backups-and-secrets.md).
+persistence:
+  config:
+    enabled: true
+    type: pvc
+    storageClass: "local-path"
+    size: 1Gi
+
+configmap:
+  scripts:
+    enabled: true
+    data:
+      # Every line of the script, comments included, must stay indented under "startup.sh: |".
+      # A "#" comment at the left margin ends the script early and helm fails with
+      # "error converting YAML to JSON: ... did not find expected key".
+      startup.sh: |
+        #!/bin/sh
+        # Runs as root every time the container starts.
+        # ffmpeg is needed by the camera plugin. "|| echo" keeps Homebridge starting even when
+        # the package servers cannot be reached.
+        apt-get update && apt-get install -y ffmpeg libpcap-dev || echo "apt-get failed; continuing without updating packages"
+
+        # Do NOT npm-install plugins here. Plugins are installed from the Homebridge UI and are
+        # kept on the volume. Installing "homebridge-camera-ffmpeg" here is what put a second,
+        # outdated camera plugin next to @homebridge-plugins/homebridge-camera-ffmpeg.
+        # Plugin list: docs/apps/homebridge.md
+
+        echo "Started successfully."

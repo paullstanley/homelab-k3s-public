@@ -1,0 +1,21 @@
+{
+  "platform": "KasaPython",
+  "name": "KasaPython",
+  "enableCredentials": true,
+  "username": "<KASA_ACCOUNT_EMAIL>",
+  "password": "<KASA_ACCOUNT_PASSWORD>",
+  "enableEnergyMonitoring": false,
+  "powerThreshold": 2,
+  "logEnergyMonitoring": false,
+  "hideHomeKitMatter": true,
+  "pollingInterval": 15,
+  "discoveryPollingInterval": 300,
+  "offlineInterval": 7,
+  "waitTimeUpdate": 1000,
+  "pythonPath": "/bin/python3",
+  "advancedPythonLogging": true,
+  "manualDevices": [
+    { "host": "192.168.101.20" },
+    { "host": "192.168.101.21" }
+  ]
+}

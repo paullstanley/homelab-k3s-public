@@ -1,0 +1,276 @@
+# https://artifacthub.io/packages/helm/mojo2600/pihole   (chart 2.38.x, Pi-hole v6)
+#
+# Dual-stack Pi-hole: IPv4 VIP 192.168.50.11 + IPv6 VIP fd00:1234:5678:50::11 via MetalLB.
+# REQUIRES a dual-stack k3s cluster. On an IPv4-only cluster the "-ipv6" Services are rejected
+# by the API server and the whole helm install/upgrade fails.
+#
+# Apply with:
+#   helm upgrade --install pihole mojo2600/pihole -n pihole --version 2.38.0 -f files/pihole/values.yaml
+# Full steps, in order, with the things that went wrong: docs/apps/pihole.md
+
+image:
+  repository: "pihole/pihole"
+  tag: "latest"            # consider pinning (e.g. "2026.07.2") so upgrades happen when you choose
+  # IfNotPresent: a Pi that already has the image can start Pi-hole without reaching Docker Hub
+  # (and without needing DNS to do it). Pull a new image deliberately when you want to upgrade.
+  pullPolicy: IfNotPresent
+
+# --- High availability -------------------------------------------------------------------------
+# Three pods, one per Pi. MetalLB moves 192.168.50.11 to a Pi that still has a healthy pod.
+# The three Pis must carry the label first:
+#   sudo kubectl label node server-1 pihole-host=true
+#   sudo kubectl label node server-2 pihole-host=true
+#   sudo kubectl label node server-3  pihole-host=true
+replicaCount: 3
+
+nodeSelector:
+  pihole-host: "true"
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: pihole
+        release: pihole
+    # Count only pods of the SAME rollout. Without this, during a helm upgrade the old pods are
+    # counted too, and the new pods can end up two on one Pi and none on another
+    # (seen in practice: two on server-1, none on server-2).
+    matchLabelKeys:
+      - pod-template-hash
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# --- IPv6 ----------------------------------------------------------------------------------------
+# With type LoadBalancer the chart creates separate SingleStack IPv6 Services
+# (<release>-dns-tcp-ipv6, -dns-udp-ipv6, -web-ipv6) that use the loadBalancerIPv6 values below.
+dualStack:
+  enabled: true
+
+# --- Web UI through Traefik (HTTPS, no port) -----------------------------------------------------
+# https://pihole.home.example.com/admin is served by Traefik on 192.168.50.12.
+# The redirect rule must exist first:
+#   sudo kubectl apply -f files/traefik/middleware-redirect-https.yaml
+# (Middleware "redirect-https" in namespace "pihole".)
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    # Send http:// requests to https://
+    traefik.ingress.kubernetes.io/router.middlewares: pihole-redirect-https@kubernetescrd
+  path: /
+  hosts:
+  - pihole.home.example.com
+
+# Kept as a LoadBalancer so http://192.168.50.11/admin still works if Traefik is ever down.
+serviceWeb:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.50.11
+  loadBalancerIPv6: "fd00:1234:5678:50::11"
+  annotations:
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+    # Three pods each keep their own login sessions. A sticky cookie makes Traefik send a
+    # browser to the same pod every time, which is what stops the login loop.
+    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.name: pihole_pod
+
+serviceDns:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.50.11
+  loadBalancerIPv6: "fd00:1234:5678:50::11"
+  annotations:
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+
+# The chart creates a DHCP LoadBalancer by default (plus an IPv6 one when dualStack is on).
+# You don't use Pi-hole for DHCP, and those Services would grab extra MetalLB addresses.
+serviceDhcp:
+  enabled: false
+
+# --- Admin password ------------------------------------------------------------------------------
+# The password is NOT in this file. Create the Secret once, before the first helm install
+# (docs/apps/pihole.md):
+#   sudo kubectl create namespace pihole
+#   sudo kubectl -n pihole create secret generic pihole-admin --from-literal=password='<PIHOLE_ADMIN_PASSWORD>'
+admin:
+  enabled: true
+  existingSecret: "pihole-admin"
+  passwordKey: "password"
+
+# --- Upstream: DoH via cloudflared ----------------------------------------------------------------
+# The chart points Pi-hole at 127.0.0.1#5053 automatically when doh.enabled is true.
+# crazymax/cloudflared reads TUNNEL_DNS_UPSTREAM.
+doh:
+  enabled: true
+  # PINNED ON PURPOSE. Cloudflare removed "proxy-dns" (the feature this sidecar is) from
+  # cloudflared releases after 2 Feb 2026. 2025.9.1 is the last crazymax/cloudflared build before
+  # that and still has it. Do not move to a newer tag without a replacement (docs/apps/pihole.md).
+  tag: "2025.9.1"
+  pullPolicy: IfNotPresent
+  envVars:
+    TUNNEL_DNS_UPSTREAM: "https://1.1.1.1/dns-query,https://1.0.0.1/dns-query"
+
+# --- Pi-hole v6 settings (FTLCONF_<section>_<key>) --------------------------------------------------
+extraEnvVars:
+  # Must be ALL in Kubernetes: queries arrive from LAN/node addresses, not the pod's own subnet.
+  FTLCONF_dns_listeningMode: "all"
+  # Answer pi.hole / the pod hostname with the VIPs, not the pod IP (10.42.x / pod IPv6)
+  FTLCONF_dns_reply_host_force4: "true"
+  FTLCONF_dns_reply_host_IPv4: "192.168.50.11"
+  FTLCONF_dns_reply_host_force6: "true"
+  FTLCONF_dns_reply_host_IPv6: "fd00:1234:5678:50::11"
+  # Reverse lookups / local names to the router (IPv4 + the ULA /64). Arrays are ';'-separated.
+  FTLCONF_dns_revServers: "true,192.168.50.0/24,192.168.50.1,home.example.com;true,fd00:1234:5678:50::/64,192.168.50.1,home.example.com"
+  FTLCONF_dns_domainNeeded: "true"
+  # Encrypted-DNS bypass blocks (these are the defaults, kept explicit)
+  FTLCONF_dns_specialDomains_mozillaCanary: "true"
+  FTLCONF_dns_specialDomains_iCloudPrivateRelay: "true"
+  FTLCONF_dns_specialDomains_designatedResolver: "true"
+
+# The chart prefixes each key with FTLCONF_.
+ftl:
+  misc_delay_startup: "60"
+  dns_ignoreLocalhost: "true"
+  dns_piholePTR: "HOSTNAME"
+  dns_showDNSSEC: "true"
+  resolver_refreshNames: "ALL"
+  database_network_parseARPcache: "true"
+
+podDnsConfig:
+  enabled: true
+  policy: "None"
+  nameservers:
+    - 127.0.0.1
+    - 1.1.1.1
+
+dnsmasq:
+  # ----------------------------------------------------------------------------------------------
+  # Service names: things reached through a shared address or that are not a device's own name.
+  # Web apps behind Traefik all point at 192.168.50.12.
+  # ----------------------------------------------------------------------------------------------
+  customDnsEntries:
+    # An app on another machine, by short name and by full name (IPv4 and IPv6)
+    - address=/media.home.example.com/192.168.50.2
+    - address=/media.home.example.com/fd00:1234:5678:50::2
+    # Pi-hole web UI: reached through Traefik (192.168.50.12) for HTTPS and sticky sessions.
+    # DNS itself is still 192.168.50.11 and fd00:1234:5678:50::11.
+    - address=/pihole.home.example.com/192.168.50.12
+    # Web apps behind Traefik (MetalLB 192.168.50.12)
+    - address=/hb.home.example.com/192.168.50.12
+    - address=/traefik.home.example.com/192.168.50.12
+    # Kubernetes API floating address (kube-vip)
+    - address=/k3s.home.example.com/192.168.50.10
+    # Router
+    - address=/gateway.home.example.com/192.168.50.1
+    - address=/gateway.home.example.com/fd00:1234:5678:50::1
+
+  # ----------------------------------------------------------------------------------------------
+  # Device names. Each line is:  <address>  <short name>  <full name>
+  # so every device answers to both "ps5" and "ps5.home.example.com".
+  #
+  # [static] = address set on the device or reserved; safe to rely on.
+  # [dhcp]   = address handed out by the router. Reserve it on the router, or this line goes stale
+  #            when the device gets a different address.
+  # ----------------------------------------------------------------------------------------------
+  additionalHostsEntries:
+    # --- Network gear ----------------------------------------------------------------------------
+    - 192.168.50.1     gateway
+    - 192.168.50.3     ap-openwrt ap-openwrt.home.example.com                # [static] TP-Link Archer A7 (OpenWrt)
+    - 192.168.50.4     ap-stock ap-stock.home.example.com                        # [dhcp]   TP-Link Archer AX21
+    - fd00:1234:5678:50::1     gateway
+    - fd00:1234:5678:50::3     ap-openwrt ap-openwrt.home.example.com
+    # --- k3s cluster -----------------------------------------------------------------------------
+    - 192.168.50.5     server-1 server-1.home.example.com                    # [static] pinned on the Pi
+    - 192.168.50.6     server-2 server-2.home.example.com server-2 server-2.home.example.com   # [static]
+    - 192.168.50.7     server-3 server-3.home.example.com                        # [static] pinned on the Pi
+    - 192.168.50.146   server-4 server-4.home.example.com                # [dhcp]   RESERVE THIS: etcd member, MAC 52:55:55:15:F1:69
+    - 192.168.50.10    k3s-api k3s-api.home.example.com                          # kube-vip floating API address
+    - 192.168.50.11    pihole                                                      # MetalLB
+    - 192.168.50.12    traefik                                                     # MetalLB
+    # --- Your devices: add one line each. Examples: --------------------------------------------
+    - 192.168.50.80    nas nas.home.example.com                                    # [static]
+    - 192.168.50.81    printer printer.home.example.com                            # [dhcp] reserve it
+    - 192.168.50.50    living-room-tv living-room-tv.home.example.com              # [dhcp] reserve it
+    # --- IoT network (192.168.101.0/24): devices with reserved addresses ------------------------
+    - 192.168.101.20   hall-light hall-light.home.example.com
+    - 192.168.101.21   porch-light porch-light.home.example.com
+
+adlists:
+  - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+  - https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Spam/hosts
+  - https://v.firebog.net/hosts/static/w3kbl.txt
+  - https://adaway.org/hosts.txt
+  - https://v.firebog.net/hosts/AdguardDNS.txt
+  - https://v.firebog.net/hosts/Admiral.txt
+  - https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt
+  - https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
+  - https://v.firebog.net/hosts/Easylist.txt
+  - https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt
+  - https://hostfiles.frogeye.fr/firstparty-trackers-hosts.txt
+  - https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.2o7Net/hosts
+  - https://v.firebog.net/hosts/Prigent-Ads.txt
+  - https://v.firebog.net/hosts/Easyprivacy.txt
+  - https://raw.githubusercontent.com/bigdargon/hostsVN/master/hosts
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/UncheckyAds/hosts
+  - https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts
+  - https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt
+  - https://v.firebog.net/hosts/Prigent-Crypto.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Risk/hosts
+  - https://phishing.army/download/phishing_army_blocklist_extended.txt
+  - https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-malware.txt
+  - https://v.firebog.net/hosts/RPiList-Malware.txt
+  - https://v.firebog.net/hosts/RPiList-Phishing.txt
+  - https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt
+  - https://raw.githubusercontent.com/AssoEchap/stalkerware-indicators/master/generated/hosts
+  - https://paulgb.github.io/BarbBlock/blacklists/hosts-file.txt
+  - https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/AmazonFireTV.txt
+  - https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/SmartTV.txt
+  - https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-blocklist.txt
+  - https://raw.githubusercontent.com/jdlingyu/ad-wars/master/hosts
+  - https://raw.githubusercontent.com/matomo-org/referrer-spam-blacklist/master/spammers.txt
+  - https://someonewhocares.org/hosts/zero/hosts
+  - https://raw.githubusercontent.com/VeleSila/yhosts/master/hosts
+  - https://winhelp2002.mvps.org/hosts.txt
+  - https://v.firebog.net/hosts/neohostsbasic.txt
+  - https://raw.githubusercontent.com/RooneyMcNibNug/pihole-stuff/master/SNAFU.txt
+  - https://www.github.developerdan.com/hosts/lists/ads-and-tracking-extended.txt
+  - https://raw.githubusercontent.com/chadmayfield/my-pihole-blocklists/master/lists/pi_blocklist_porn_top1m.list
+  - https://v.firebog.net/hosts/Prigent-Adult.txt
+  # was a github.com/.../blob/... page (HTML, not a list). Raw URL instead:
+  - https://raw.githubusercontent.com/NethServer/dns-community-blacklist/master/easylist.dns
+  # Hagezi: only the "-onlydomains" files are Pi-hole format. The plain wildcard/*.txt files
+  # use "*.domain" lines, which Pi-hole rejects, so those duplicates were removed.
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/fake-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.medium-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/popupads-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nosafesearch-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/dyndns-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/hoster-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.amazon-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.tiktok-onlydomains.txt
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.tiktok.extended-onlydomains.txt
+  # Encrypted-DNS (DoH/DoT) bypass hostnames
+  - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/doh-onlydomains.txt
+
+# Domains that must never be blocked. Start empty and add what breaks for you. Examples:
+whitelist:
+  - gs-loc.apple.com
+  - metrics.icloud.com
+
+# Extra domains to block on top of the lists. Example:
+blacklist:
+  - example-tracker.invalid
+
+regex:
+  - ^(.+[_.-])?(ads?(erv(er?|ice)?s?|im(age|g)s?|track(er|ing)?|vert(s|is(ing|ements?))?)?|aff(iliat(es?|ion))?|analytics?|banners?|beacons?|count(ers?)?|mads|pixels?|stat(s|istics)?)[0-9]*[_.-]
+  - ^(ads|logs|cloudservices).roku.com$
+  - (^|\.)((xn--.*)|buffpanel\.com|bugsnag\.com|redshell\.io|treasuredata\.com|unity(|3d)\.com|unityads(|\.co)\.com|g00\..*|ad.*\.doubleclick\.net)$
+  - \.(ru|cn|ml|ga|gq|cf|tk|pw|ua|ug|ve|info|site|club|host|party)$

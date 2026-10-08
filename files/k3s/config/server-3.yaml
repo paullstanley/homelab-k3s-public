@@ -1,0 +1,14 @@
+# /etc/rancher/k3s/config.yaml on server-3 (192.168.50.7) - an additional server (etcd member).
+# Replace <K3S_TOKEN> with the contents of /var/lib/rancher/k3s/server/token on server-1.
+# Never commit the real token. Steps: docs/kubernetes/k3s-ha-cluster.md
+server: https://192.168.50.5:6443
+token: <K3S_TOKEN>
+node-ip: 192.168.50.7,fd00:1234:5678:50::7
+tls-san:
+  - 192.168.50.10
+cluster-cidr: 10.42.0.0/16,fd00:1234:5678:4200::/56
+service-cidr: 10.43.0.0/16,fd00:1234:5678:4300::/112
+flannel-ipv6-masq: true
+flannel-iface: eth0
+disable:
+  - servicelb

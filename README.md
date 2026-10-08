@@ -1,140 +1,120 @@
-# Home network and k3s cluster: rebuild reference
+# Home network and k3s homelab: a how-to wiki
 
-> **Public copy.** The domain, names, MAC addresses, serial numbers, IPv6 ranges and Wi-Fi names in this repository are made-up stand-ins. Passwords and tokens are placeholders. Substitute your own values.
+A set of step-by-step guides for building and looking after a home network with an isolated IoT network, local-only IPv6, and a small highly available k3s (Kubernetes) cluster that runs Pi-hole, Homebridge and Seerr. Every guide comes from a real build, and records what went wrong as well as what worked.
 
-Everything needed to put the house network and the k3s cluster back the way they were on 8 October 2026: guides, Helm values, manifests and scripts. Passwords, tokens and data backups are **not** here; [docs/13](docs/13-backups-and-secrets.md) lists what they are and where they go.
+The guides are **modular**. Each page stands on its own: if you only own one of these devices, or only want Pi-hole on k3s, go straight to that page. Each one lists what it needs first.
 
-Two rules that hold everywhere in this repo:
+**New here?** Read [Overview](docs/start-here/overview.md) for how the pieces fit, then [Conventions](docs/start-here/conventions.md) for the example names and addresses used everywhere.
 
-- Every command block says which machine to paste it on, and starts at the left margin so it pastes cleanly.
-- Config files are complete. Apply the whole file; never merge fragments by hand.
+**Something is broken?** Go to [Troubleshooting](docs/operations/troubleshooting.md). It is organised by symptom.
 
-This is the **private** copy. To produce the shareable one with personal details replaced, see "Private and public copies" in [docs/13](docs/13-backups-and-secrets.md).
+## Find your page
 
-## The setup in one table
+### By hardware
 
-| Address | What |
+| You have | Guide |
 | --- | --- |
-| 192.168.50.1 | ASUS ZenWiFi XT8 router (AiMesh, second unit wired, at .117) |
-| 192.168.50.3, .4 | Access points: Archer A7 (OpenWrt), Archer AX21 |
-| 192.168.50.5, .6, .7 | Raspberry Pi k3s servers: k3sprimary, funkyfresh, k3snode2 |
-| 192.168.50.146 | Fourth k3s server: Lima VM on the M1 MacBook Pro |
-| 192.168.50.10 | Kubernetes API (kube-vip) |
-| 192.168.50.11 | Pi-hole, three pods, DNS for the house (MetalLB) |
-| 192.168.50.12 | Traefik: Pi-hole UI, Homebridge, Seerr (MetalLB) |
-| 192.168.101.0/24 | Isolated guest/IoT network: Kasa and Wyze devices. Broadcast by the XT8 and the Archer A7 |
+| ASUS ZenWiFi XT8 (or another ASUS router on Asuswrt-Merlin) | [ASUS ZenWiFi XT8 router](docs/hardware/asus-zenwifi-xt8.md) |
+| A second XT8 as an AiMesh node | [AiMesh node](docs/hardware/asus-aimesh-node.md) |
+| TP-Link Archer A7 v5 (or another OpenWrt device used as an access point) | [Archer A7 on OpenWrt](docs/hardware/tp-link-archer-a7-openwrt.md) |
+| TP-Link Archer AX21 on stock firmware | [Archer AX21 as an access point](docs/hardware/tp-link-archer-ax21.md) |
+| Raspberry Pi 4 or 5 | [Preparing a Raspberry Pi for k3s](docs/hardware/raspberry-pi.md) |
+| An Apple-silicon Mac you want in the cluster | [Mac as a k3s server in a Lima VM](docs/hardware/mac-lima-vm.md) |
 
-Full list of addresses, names and every device: [docs/01](docs/01-inventory.md).
+### By what you want to do
 
-## Rebuild order
-
-Each step depends on the ones above it. If only one thing broke, go straight to its guide.
-
-| # | What | Guide | Files |
-| --- | --- | --- | --- |
-| 1 | XT8: GUI settings, guest/IoT network, bootstrap script, device lists | [02](docs/02-router-xt8.md) | `network/xt8/` |
-| 2 | Access points, IoT network on the A7, weekly reboots | [03](docs/03-access-points.md), [02](docs/02-router-xt8.md) "The AiMesh node" | `network/archer-a7/`, `network/xt8/node/` |
-| 3 | Raspberry Pis: OS, fixed addresses, k3s servers, CoreDNS replicas | [04](docs/04-k3s-cluster.md) | `k3s/config/` |
-| 4 | MetalLB, Traefik address, kube-vip | [06](docs/06-load-balancers.md) | `metallb/`, `traefik/`, `k3s/kube-vip/` |
-| 5 | Pi-hole | [07](docs/07-pihole.md) | `pihole/values.yaml` |
-| 6 | Mac VM as fourth server | [05](docs/05-mac-node-lima.md) | `k3s/lima/`, `k3s/config/lima-k3s-mac.yaml` |
-| 7 | Homebridge, Kasa switches, cameras | [08](docs/08-homebridge.md) | `Homebridge/` |
-| 8 | Seerr and the Cloudflare tunnel | [09](docs/09-seerr-and-cloudflare.md) | `Seerr/values.yaml` |
-| 9 | Node firewall (optional, currently off) | [10](docs/10-firewall.md) | `firewall/k3s-firewall.sh` |
-| 10 | Client devices, work Mac hosts file | [11](docs/11-clients.md) | `clients/` |
-| 11 | Verify everything | [12](docs/12-verification.md) | |
-
-Between steps 1 and 5 Pi-hole does not exist, so the house has no DNS. While you work, set your own computer's DNS to 9.9.9.9 by hand and add it to DNS Director on the router as **No Redirection**; undo both afterwards.
-
-When something is wrong: [docs/14](docs/14-troubleshooting.md). What is unfinished or unverified: [docs/15](docs/15-open-items.md).
-
-## The parts that caused the most trouble
-
-| Problem | Where it is written up |
+| You want | Guide |
 | --- | --- |
-| Homebridge could not reach Kasa switches on the isolated network (ASUS guest isolation lives in `ebtables`) | [08](docs/08-homebridge.md) Step 5, [02](docs/02-router-xt8.md) |
-| The k3s built-in load balancer taking addresses from MetalLB | [06](docs/06-load-balancers.md) |
-| Nodes depending on Pi-hole for their own DNS | [04](docs/04-k3s-cluster.md) Step 2 |
-| Mac VM joining on the wrong interface and under the wrong name | [05](docs/05-mac-node-lima.md) |
-| Leftover `server` folders stopping the etcd conversion | [04](docs/04-k3s-cluster.md), last section |
-| Pi-hole login loop with three pods | [07](docs/07-pihole.md) |
-| Cloudflare 502 after Traefik moved | [09](docs/09-seerr-and-cloudflare.md) |
-| Home names not resolving on the work Mac | [11](docs/11-clients.md) |
-| Routers not sending IPv6 advertisements | [02](docs/02-router-xt8.md) |
-| Homebridge plugins failing DNS lookups (`getaddrinfo ENOTFOUND`): a host-network pod cannot reach the IPv6 cluster DNS address | [08](docs/08-homebridge.md) Step 1, [04](docs/04-k3s-cluster.md) Step 8, [14](docs/14-troubleshooting.md) A10 |
-| Router log growing without limit (Scribe's logrotate had no state folder) | [02](docs/02-router-xt8.md), Add-ons |
+| Ad-blocking DNS for the whole house that survives a node failing | [Pi-hole on k3s](docs/apps/pihole.md), [DNS design](docs/network/dns-design.md) |
+| A k3s cluster with no single point of failure | [HA k3s cluster](docs/kubernetes/k3s-ha-cluster.md), [Load balancers](docs/kubernetes/load-balancers.md), [CoreDNS](docs/kubernetes/coredns.md) |
+| A firewall on the nodes that does not break k3s | [Node firewall](docs/kubernetes/node-firewall.md) |
+| Order instead of whatever DHCP handed out: address blocks, which devices need reservations, host names, which devices to exempt from roaming | [Address plan](docs/network/address-plan.md) |
+| Smart devices kept away from your computers, but still controllable | [Isolated IoT network](docs/network/isolated-iot-network.md) |
+| The same IoT network on a second, non-ASUS access point | [Isolated IoT network](docs/network/isolated-iot-network.md) |
+| IPv6 on the LAN although your ISP offers none | [Local-only IPv6](docs/network/local-only-ipv6.md) |
+| HomeKit for devices that do not support it | [Homebridge on k3s](docs/apps/homebridge.md) |
+| Homebridge reaching Kasa devices on the IoT network | [Kasa across networks](docs/apps/homebridge-kasa-across-networks.md) |
+| Axis or Wyze cameras in the Home app | [Cameras](docs/apps/homebridge-cameras.md) |
+| A request app reachable from outside without opening a port | [Seerr behind a Cloudflare tunnel](docs/apps/seerr-cloudflare-tunnel.md) |
+| Home names working on a laptop with a corporate VPN | [Client devices](docs/apps/client-devices.md) |
+| To understand what your router log is telling you | [Router logging](docs/network/router-logging.md) |
 
-## What is in each folder
+### Running it
 
-| Folder | Status | Contents |
+| Task | Guide |
+| --- | --- |
+| Prove a build or a change works | [Verification](docs/operations/verification.md) |
+| Back everything up, and keep secrets out of Git | [Backups and secrets](docs/operations/backups-and-secrets.md) |
+| Reboots, upgrades, periodic checks | [Maintenance](docs/operations/maintenance.md) |
+| Fix a problem | [Troubleshooting](docs/operations/troubleshooting.md) |
+| Every external document these guides cite | [References](docs/references.md) |
+
+## Build order for the whole thing
+
+Each step depends on the ones above it. Skip what you do not have.
+
+| # | Step | Guide |
 | --- | --- | --- |
-| `docs/` | Current | The guides |
-| `network/xt8/` | Current | `xt8-bootstrap.sh` and reference copies of the JFFS scripts it installs |
-| `network/xt8/node/` | Current | `xt8-node-setup.sh` (weekly reboot of the AiMesh node, run from the Mac) and a copy of the node's `services-start` |
-| `network/archer-a7/` | Current | `a7-ap-setup.sh`, `a7-iot-ssid.sh`, `a7-backup.sh` |
-| `k3s/config/` | Current | `/etc/rancher/k3s/config.yaml` for each of the four servers |
-| `k3s/kube-vip/` | Current | The kube-vip HelmChart |
-| `k3s/lima/` | Reconstructed | Lima VM definition; replace with the real one |
-| `metallb/` | Current | Address pools |
-| `traefik/` | Current | HTTPS redirect rules |
-| `pihole/` | Current | Complete values file, all device names |
-| `Homebridge/` | Current | Values file and plugin config examples |
-| `Seerr/` | Current | Values file |
-| `firewall/` | Current, switched off | `k3s-firewall.sh` |
-| `cloudflare/` | Current | Tunnel settings |
-| `clients/` | Current | Work Mac hosts lines |
-| `scripts/` | Current | `export-live-config.sh`, `make-public.py` |
-| `Overseer/` | Retired | Replaced by Seerr. Kept for reference |
-| `portainer/`, `flame/`, `homarr/`, `code-server/`, `letsencrypt/`, `Ingresses/` | Templates | Generic examples with placeholder hosts, not part of the running setup. Untouched |
+| 1 | Router: settings, IoT network, scripts | [XT8 router](docs/hardware/asus-zenwifi-xt8.md), [Isolated IoT network](docs/network/isolated-iot-network.md), [Local-only IPv6](docs/network/local-only-ipv6.md) |
+| 2 | Mesh node and extra access points | [AiMesh node](docs/hardware/asus-aimesh-node.md), [Archer A7](docs/hardware/tp-link-archer-a7-openwrt.md), [Archer AX21](docs/hardware/tp-link-archer-ax21.md) |
+| 3 | Prepare the cluster machines | [Raspberry Pi](docs/hardware/raspberry-pi.md) |
+| 4 | Cluster | [HA k3s cluster](docs/kubernetes/k3s-ha-cluster.md) |
+| 5 | Addresses for services | [Load balancers](docs/kubernetes/load-balancers.md), [CoreDNS](docs/kubernetes/coredns.md) |
+| 6 | DNS for the house | [Pi-hole](docs/apps/pihole.md), then point the router at it: [DNS design](docs/network/dns-design.md) |
+| 7 | Optional fourth server | [Mac in a Lima VM](docs/hardware/mac-lima-vm.md) |
+| 8 | Apps | [Homebridge](docs/apps/homebridge.md), [Kasa](docs/apps/homebridge-kasa-across-networks.md), [Cameras](docs/apps/homebridge-cameras.md), [Seerr](docs/apps/seerr-cloudflare-tunnel.md) |
+| 9 | Optional hardening | [Node firewall](docs/kubernetes/node-firewall.md) |
+| 10 | Tidy up addresses and names | [Address plan](docs/network/address-plan.md) |
+| 11 | Prove it, back it up | [Verification](docs/operations/verification.md), [Backups and secrets](docs/operations/backups-and-secrets.md) |
 
-## Changes made to this repo on 7 and 8 October 2026
+Between steps 1 and 6 there is no Pi-hole yet, so nothing on the network should be told to use it. [DNS design](docs/network/dns-design.md) explains how to get through that window.
 
-| File | Change |
+## How the pages are written
+
+Every guide has the same parts, in the same order:
+
+| Section | What it gives you |
 | --- | --- |
-| `network/archer-a7/a7-iot-ssid.sh` | New. Adds the isolated `Home-IoT` SSID (VLAN 501) to the A7 |
-| `network/xt8/node/xt8-node-setup.sh` | New. Weekly reboot for the AiMesh node; takes the node's address, SSH user and port |
-| `network/xt8/node/services-start` | New. Reference copy of the node's boot script |
-| `network/archer-a7/a7-backup.sh` | New. Pulls a checked settings backup off the A7 to the Mac |
-| `network/archer-a7/a7-ap-setup.sh` | Schedules the A7's weekly reboot (Wednesday 03:30) |
-| `network/xt8/xt8-bootstrap.sh` | Creates Scribe's logrotate state folder and checks it in `verify` |
-| [docs/02](docs/02-router-xt8.md) | The AiMesh node, weekly reboot, Scribe log rotation, seeing and logging IPv6, VLAN 501 confirmed |
-| [docs/03](docs/03-access-points.md) | IoT network on the A7, weekly reboot, live Wi-Fi and switch settings as read on 3 October |
-| [docs/01](docs/01-inventory.md), [13](docs/13-backups-and-secrets.md), [14](docs/14-troubleshooting.md) | Node address, new A7 backup, new troubleshooting rows |
-| [docs/15](docs/15-open-items.md) | "Added 7 October": what is still missing from this repo, and findings from the router log review |
-| `scripts/make-public.py` | Replaces the node's hostname |
+| Summary table | The exact hardware and versions it was done on, what it should also work for, and what you need first |
+| How it works | A short plain-language model, so the steps and the traps make sense |
+| Steps | Numbered. Every command block says which machine to run it on |
+| Check it | Commands with the result you should see |
+| Pitfalls | Each trap: what happens, why, and how to avoid or recover from it |
+| Troubleshooting | Symptom, cause, fix |
+| Undo | How to back the change out |
+| References | The official documentation behind the page |
 
-**Not in yet:** the script that moves wireless devices between the XT8 units. See [docs/15](docs/15-open-items.md).
+Two labels matter:
 
-## Changes made to this repo on 6 October 2026
+- **"Applies to"** means the author did it on that exact hardware and version.
+- **"Not verified"** means the step, script or claim was not run or confirmed by the author. Treat it as a starting point and test it yourself. Several scripts in `files/` were only syntax-checked or run against stand-in commands; each page says which.
 
-All from one piece of work: Homebridge's Wyze and Resideo plugins were failing DNS lookups a few times an hour. Cause and fix are in [08](docs/08-homebridge.md) Step 1.
+## What is in this repository
 
-| File | Change |
+| Folder | Contents |
 | --- | --- |
-| `Homebridge/values.yaml` | **`dnsPolicy: None` and a `dnsConfig` block** (one name server, 10.43.0.10, `ndots: 1`). Image name changed to `ghcr.io/homebridge/homebridge` to match the live file. Warning about comment indentation in the startup script |
-| `Homebridge/config-examples/kasa-python.json` | Brought in line with the live config: polling 15, wait 1000, and the other plugin options |
-| `Homebridge/config-examples/camera-ffmpeg.json` | Wyze still-image line and stream limits as in the live config |
-| [docs/04](docs/04-k3s-cluster.md) | New Step 8: CoreDNS scaled to three; CoreDNS pods older than dual-stack; why host-network pods cannot reach IPv6 service addresses |
-| [docs/08](docs/08-homebridge.md) | The DNS block and how to check it; mDNS advertiser Ciao; Resideo 401s; camera and Wyze details confirmed; leftovers |
-| [docs/12](docs/12-verification.md) | CoreDNS and Homebridge DNS checks |
-| [docs/13](docs/13-backups-and-secrets.md) | What was pasted into a chat on 6 October and must be rotated |
-| [docs/14](docs/14-troubleshooting.md) | New A10 (DNS inside a pod, step by step) and new rows in Part B |
-| [docs/15](docs/15-open-items.md) | New open and unverified items; two old ones closed |
+| [`docs/`](docs/) | The guides: `start-here`, `hardware`, `network`, `kubernetes`, `apps`, `operations` |
+| [`files/`](files/) | Working configuration files and scripts the guides use: router scripts, access point scripts, k3s configs, Helm values, MetalLB, Traefik, the node firewall |
+| [`extras/`](extras/) | Older generic templates (Portainer, Flame, Homarr, code-server, cert-manager issuers, example Ingresses). Not part of the build described here and not maintained |
 
-Changed on the live cluster the same day, by command (nothing in this repo applies them): CoreDNS restarted and scaled to three replicas; `~/helm/homebridge/values.yaml` on k3sprimary given the DNS block and applied with `helm upgrade`.
+Run commands that mention a path such as `files/pihole/values.yaml` from the root of a clone of this repository:
 
-## Changes made to this repo on 4 October 2026
+```sh
+git clone https://github.com/<YOUR_ACCOUNT>/homelab-k3s-public.git
+cd homelab-k3s-public
+```
 
-| File | Change |
-| --- | --- |
-| `README.md` | Replaced. The old one described a generic two-Pi install on 192.168.0.x with agents; the Pi preparation steps that still apply moved to [docs/04](docs/04-k3s-cluster.md) |
-| `pihole/values.yaml` | Three replicas, Traefik ingress with sticky cookie, every device name, pull policy, placement fix for upgrades, encryption sidecar pinned to 2025.9.1. **Admin password removed** and moved to a Secret |
-| `firewall/k3s-firewall.sh` | Allowed range widened to 192.168.0.0/16 for VPN access |
-| `Seerr/values.yaml` | Service on port 80, time zone fixed, unused blocks removed |
-| `Homebridge/values.yaml` | Real host name, HTTPS redirect, pull policy, plugin installs removed from the startup script |
-| `metallb/config.yaml` | Real pools: 192.168.50.11 to .15 and the Pi-hole IPv6 address |
-| `metallb/values.yaml` | **Deleted.** It was a copy of the MetalLB config under a misleading name, with the old .10 to .15 pool |
-| `Ingresses/ traefik/argocd` | Renamed to `Ingresses/traefik/argocd.yaml` (the folder name started with a space). Contents unchanged; note its `traefik.containo.us` API version is the old one |
-| `Ingresses/nginx/example-web app.yaml` | Renamed to `example-web-app.yaml` |
-| `.DS_Store` files | Removed; `.gitignore` added |
-| Everything else listed as Current above | New |
+## Before you copy anything
+
+- **All names, addresses, MAC addresses, the domain and the IPv6 prefix are examples.** [Conventions](docs/start-here/conventions.md) lists them and how to swap in yours.
+- **Passwords and tokens are placeholders** in angle brackets, such as `<K3S_TOKEN>`. Never commit the real ones; [Backups and secrets](docs/operations/backups-and-secrets.md) says where they belong.
+- **Read a script before you run it**, especially the ones that change a router. Take the backup the page tells you to take first.
+- This is one household's build, shared as-is with no warranty. Firmware and software move on; check the versions in each page's summary table against yours.
+
+## Contributing
+
+Corrections, additions for other hardware, and reports of steps that no longer work are welcome as issues or pull requests. Please keep the page structure above, say exactly what hardware and versions you tested on, and never include real passwords, tokens, public IP addresses or hardware MAC addresses.
+
+## License
+
+[MIT](LICENSE). Use it, change it, share it.

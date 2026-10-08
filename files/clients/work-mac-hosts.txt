@@ -1,0 +1,6 @@
+# Lines for /etc/hosts on a laptop whose corporate VPN hides home names.
+# Why: the work VPN's DNS proxy answers NXDOMAIN for home names, and /etc/hosts is checked first.
+# /etc/hosts has no wildcards: every new app behind Traefik must be added to the .12 line.
+# How to apply: docs/apps/client-devices.md
+192.168.50.12 pihole.home.example.com hb.home.example.com traefik.home.example.com
+192.168.50.10 k3s.home.example.com

@@ -1,0 +1,28 @@
+# Sends http:// requests to https://. One copy per namespace, because an Ingress can only
+# reference a Middleware by "<namespace>-<name>@kubernetescrd".
+#
+#   sudo kubectl apply -f files/traefik/middleware-redirect-https.yaml
+#
+# Referenced by:
+#   files/pihole/values.yaml      -> pihole-redirect-https@kubernetescrd
+#   files/homebridge/values.yaml  -> homebridge-redirect-https@kubernetescrd
+# Seerr has none on purpose: Cloudflare talks to it over plain HTTP and does HTTPS itself.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: pihole
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: homebridge
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
