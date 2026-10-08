@@ -97,6 +97,8 @@ Two labels matter:
 | [`files/`](files/) | Working configuration files and scripts the guides use: router scripts, access point scripts, k3s configs, Helm values, MetalLB, Traefik, the node firewall |
 | [`extras/`](extras/) | Older generic templates (Portainer, Flame, Homarr, code-server, cert-manager issuers, example Ingresses). Not part of the build described here and not maintained |
 
+The same guides are also published on this repository's **Wiki** tab, with a sidebar. The wiki is generated from `docs/` by [`files/scripts/build-wiki.py`](files/scripts/build-wiki.py); edit the files in `docs/`, never the wiki pages.
+
 Run commands that mention a path such as `files/pihole/values.yaml` from the root of a clone of this repository:
 
 ```sh
