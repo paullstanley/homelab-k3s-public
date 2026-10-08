@@ -12,6 +12,7 @@
 #                    dnsmasq + firewall, then run verify            (default)
 #   scripts-only     write the scripts and restart services; touch no nvram
 #   verify           check the live router against the spec; changes nothing
+#   gui              apply the GUI SPEC settings (roaming, reboot, time, port forwards...)
 #   backup           save JFFS scripts/configs/addons and the per-device lists
 #                    (DNS Director clients, DHCP reservations) to the USB drive
 #   restore-lists F  load the per-device lists back from a backup file F
@@ -45,6 +46,25 @@ GUEST_NET="192.168.101.0/24"
 USB_MOUNT="/tmp/mnt/gateway"         # where the router mounts its USB drive (ls /tmp/mnt); used by "backup"
 GUEST_WL="wl0.1"                     # guest Wi-Fi interface carrying the isolation rules
 HB_HOSTS="192.168.50.5,192.168.50.6,192.168.50.7"   # k3s nodes that may run Homebridge (today: .5 only)
+# ----------------------------- GUI SPEC (used by "gui" only) ------------------
+# Settings you would otherwise click through in the web UI after a factory reset.
+# "install" never touches these; "sh xt8-bootstrap.sh gui" applies them; "verify"
+# reports them. Leave a value empty ("") to skip that setting.
+GUI_RSSI_2G="-75"                    # Wireless > Professional > Roaming assistant, 2.4 GHz (dBm)
+GUI_RSSI_5G1="-70"                   # same, 5 GHz-1
+GUI_RSSI_5G2="-70"                   # same, 5 GHz-2
+GUI_REBOOT="00010000335"             # Administration > System > Reboot scheduler: 7 day flags
+                                     # Sun..Sat, then HHMM. 0001000 + 0335 = Wednesday 03:35.
+GUI_TZ="EST5DST"                     # Administration > System > Time zone (US Eastern)
+GUI_TZ_DSTOFF="M3.2.0/2,M11.1.0/2"   # daylight saving rule for that zone
+GUI_NTP="pool.ntp.org"               # Administration > System > NTP server
+GUI_LOG_SIZE="512"                   # System log size (KB) kept by the firmware
+GUI_AUTOLOGOUT="30"                  # Administration > System > Auto logout (minutes)
+GUI_UPNP="1"                         # WAN > Enable UPnP: 1 on, 0 off
+GUI_PORTFWD='<MEDIA>32400>192.168.50.2>32400>TCP>'
+                                     # WAN > Virtual Server / Port Forwarding list, exactly as the
+                                     # firmware stores it: <name>ext port>LAN IP>LAN port>proto> ...
+                                     # Every LAN IP here must have a DHCP reservation.
 # -----------------------------------------------------------------------------
 
 JFFS="${JFFS:-/jffs}"                # overridable only for testing
@@ -267,6 +287,52 @@ restart_services() {
 }
 
 # ---------------------------------------------------------------------------
+# gui: the GUI SPEC settings (separate from install on purpose)
+# ---------------------------------------------------------------------------
+nvs() { [ -n "$2" ] && nv "$@"; }      # skip settings left empty in the GUI SPEC
+do_gui() {
+  say "GUI settings (from the GUI SPEC block):"
+  nvs wl0_user_rssi      "$GUI_RSSI_2G"   "Roaming assistant 2.4 GHz"
+  nvs wl1_user_rssi      "$GUI_RSSI_5G1"  "Roaming assistant 5 GHz-1"
+  nvs wl2_user_rssi      "$GUI_RSSI_5G2"  "Roaming assistant 5 GHz-2"
+  if [ -n "$GUI_REBOOT" ]; then
+    nv reboot_schedule_enable 1          "Reboot scheduler on"
+    nv reboot_schedule  "$GUI_REBOOT"    "Reboot scheduler days and time"
+  fi
+  if [ -n "$GUI_TZ" ]; then
+    nv time_zone        "$GUI_TZ"        "Time zone"
+    nv time_zone_dst    1                "Daylight saving on"
+    nv time_zone_dstoff "$GUI_TZ_DSTOFF" "Daylight saving rule"
+    nv time_zone_x      "$GUI_TZ,$GUI_TZ_DSTOFF" "Time zone (combined key)"
+  fi
+  nvs ntp_server0        "$GUI_NTP"        "NTP server"
+  nv  dns_norebind       1                 "WAN > DNS rebind protection on"
+  nv  dns_fwd_local      0                 "WAN > Forward local domain queries upstream = No"
+  nvs log_size           "$GUI_LOG_SIZE"   "System log size"
+  nvs http_autologout    "$GUI_AUTOLOGOUT" "Auto logout"
+  nvs wan0_upnp_enable   "$GUI_UPNP"       "UPnP"
+  if [ -n "$GUI_PORTFWD" ]; then
+    nv vts_enable_x      1                 "Port forwarding on"
+    nv vts_rulelist      "$GUI_PORTFWD"    "Port forwarding list"
+  fi
+  if [ "$NV_CHANGED" = 1 ]; then
+    nvram commit
+    say "nvram committed. REBOOT the router so the wireless, time and port-forward changes take effect."
+  else
+    say "nothing to change."
+  fi
+}
+verify_gui() {
+  [ -z "$GUI_RSSI_2G" ]  || chk "GUI: roaming assistant 2.4 GHz $GUI_RSSI_2G"  nveq wl0_user_rssi "$GUI_RSSI_2G"
+  [ -z "$GUI_RSSI_5G1" ] || chk "GUI: roaming assistant 5 GHz-1 $GUI_RSSI_5G1" nveq wl1_user_rssi "$GUI_RSSI_5G1"
+  [ -z "$GUI_RSSI_5G2" ] || chk "GUI: roaming assistant 5 GHz-2 $GUI_RSSI_5G2" nveq wl2_user_rssi "$GUI_RSSI_5G2"
+  [ -z "$GUI_REBOOT" ]   || chk "GUI: scheduled reboot $GUI_REBOOT"   sh -c "[ \"\$(nvram get reboot_schedule_enable)\" = 1 ] && [ \"\$(nvram get reboot_schedule)\" = '$GUI_REBOOT' ]"
+  [ -z "$GUI_TZ" ]       || chk "GUI: time zone $GUI_TZ"              nveq time_zone "$GUI_TZ"
+  chk "GUI: DNS rebind protection on"                                 nveq dns_norebind 1
+  [ -z "$GUI_PORTFWD" ]  || chk "GUI: port-forward list as in the spec" nveq vts_rulelist "$GUI_PORTFWD"
+}
+
+# ---------------------------------------------------------------------------
 # verify
 # ---------------------------------------------------------------------------
 PASS=0; BAD=0
@@ -316,6 +382,7 @@ do_verify() {
   fi
   # (Pi-hole over IPv6 is tested from a client, not from here: the router's own
   #  ip6tables INPUT policy drops the reply. See docs/operations/verification.md.)
+  verify_gui
   echo
   say "$PASS passed, $BAD failed."
   [ "$BAD" = 0 ] || say "Look up each FAIL in docs/hardware/asus-zenwifi-xt8.md, section on verify FAILs."
@@ -372,6 +439,7 @@ case "${1:-install}" in
     do_scripts; do_nvram; restart_services; do_verify ;;
   scripts-only)  do_scripts; restart_services; do_verify ;;
   verify)        do_verify ;;
+  gui)           do_gui ;;
   backup)        do_backup ;;
   restore-lists) do_restore_lists "${2:-}" ;;
   uninstall)     do_uninstall ;;

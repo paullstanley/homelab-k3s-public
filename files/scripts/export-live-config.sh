@@ -4,7 +4,7 @@
 # compare it with this repo and commit what changed.
 #
 # Run on server-1, from the root of this repo:
-#     bash scripts/export-live-config.sh
+#     bash files/scripts/export-live-config.sh
 #
 # It only reads. It changes nothing on the cluster.
 # Secrets are replaced with placeholders before anything is written:

@@ -23,6 +23,8 @@
 IOT_SSID="${IOT_SSID:-Home-IoT}"   # must match the router's guest network name exactly
 IOT_VLAN="${IOT_VLAN:-501}"            # check on the router: brctl show  (members of br1 end in .501)
 VLAN_SLOT="${VLAN_SLOT:-3}"            # swconfig table row to use; pick a free one if you already have 3 VLANs
+IOT_ENCRYPTION="${IOT_ENCRYPTION:-sae-compat}"  # sae-compat = WPA2/WPA3 compatibility (what the live AP uses);
+                                       # psk2+ccmp = plain WPA2 for very old IoT radios
 RADIO="${RADIO:-radio1}"               # the 2.4 GHz radio
 
 [ -n "$IOT_KEY" ]     || { echo "ERROR: set IOT_KEY to the guest network password"; exit 1; }
@@ -76,16 +78,18 @@ uci set network.iot=interface
 uci set network.iot.proto='none'      # "Unmanaged": the A7 itself stays off the IoT network
 uci set network.iot.device='br-iot'
 
-# --- the SSID: plain WPA2, no 802.11w, clients isolated from each other --------
+# --- the SSID ------------------------------------------------------------------
 uci set wireless.iot_radio1=wifi-iface
 uci set wireless.iot_radio1.device="$RADIO"
 uci set wireless.iot_radio1.mode='ap'
 uci set wireless.iot_radio1.network='iot'
 uci set wireless.iot_radio1.ssid="$IOT_SSID"
-uci set wireless.iot_radio1.encryption='psk2+ccmp'
+uci set wireless.iot_radio1.encryption="$IOT_ENCRYPTION"
 uci set wireless.iot_radio1.key="$IOT_KEY"
-uci set wireless.iot_radio1.ieee80211w='0'
-uci set wireless.iot_radio1.isolate='1'
+[ "$IOT_ENCRYPTION" = "psk2+ccmp" ] && uci set wireless.iot_radio1.ieee80211w='0'
+# bridge_isolate: clients of this SSID cannot reach other ports of br-iot through the AP
+# (the live setting). isolate additionally stops clients of this SSID talking to each other.
+uci set wireless.iot_radio1.bridge_isolate='1'
 
 uci commit network
 uci commit wireless

@@ -280,7 +280,7 @@ Pi-hole over IPv6 is tested from a client, not from the router: the router's own
 | `router LAN address is ...` | Fix LAN > LAN IP in the GUI |
 | Any nvram check (JFFS scripts, IPv6 type, DHCP, DNS Director) | Run `install` again, then reboot |
 | `br0 has ...::1/64`, `no IPv6 default route`, any `dnsmasq:` check | `service restart_dnsmasq`, wait 5 seconds, verify again. If it still fails, `cat /jffs/scripts/dnsmasq.postconf` and confirm the marked block is there and the file is executable |
-| Any `DNS-over-TLS` check | The script's `WAN_DOT=1` says the router should use DNS-over-TLS. Set WAN > DNS Privacy Protocol as in [DNS design](../network/dns-design.md) Step 4, or set `WAN_DOT=0` if you chose plain DNS. Not verified: these checks have not run on a router |
+| Any `DNS-over-TLS` check | The script's `WAN_DOT=1` says the router should use DNS-over-TLS. Set WAN > DNS Privacy Protocol as in [DNS design](../network/dns-design.md) Step 4, or set `WAN_DOT=0` if you chose plain DNS. The keys were confirmed on 3004.388.10_2 ([DNS design](../network/dns-design.md) Step 4) |
 | `dnsmasq: upstream is only ...` | Only with `WAN_DOT=0`. `cat /tmp/resolv.dnsmasq` must list exactly the `WAN_DNS` servers. A `127.x` entry means DNS-over-TLS is on or dnscrypt-proxy is back |
 | `no dnscrypt-proxy running` | [Removing dnscrypt-proxy](#removing-dnscrypt-proxy) |
 | Any `ip6tables` or `iptables` check | `service restart_firewall`, wait 10 seconds, verify again |
@@ -428,6 +428,10 @@ cat /tmp/resolv.dnsmasq
 
 The only matches allowed are lines inside `/jffs/scripts/firewall` (that file is Skynet's; three lines were seen). With plain DNS, `resolv.dnsmasq` must list only your upstream servers. With DNS-over-TLS it points at the router's own forwarder instead, so rely on the `grep` and on `ps w | grep dnscrypt` showing nothing.
 
+## Firmware and updates
+
+Where the GNUton firmware for the RT-AX95Q comes from, the exact file name, how to flash it from stock and go back, how the AiMesh node is updated (the **Upload** link on the main router), and where amtm, Entware and each add-on now live (several moved to the AMTM-OSR organisation): [Software and firmware](../operations/software-and-firmware.md#gnuton-asuswrt-merlin-for-the-xt8-rt-ax95q). A first flash and factory reset, with Entware on a USB drive, is walked through in [From nothing to a full deployment](../start-here/build-from-nothing.md#phase-1-main-router-firmware). The upgrade routine and the re-checks afterwards are in [Maintenance](../operations/maintenance.md#step-4-firmware-and-add-on-upgrades-router-and-node).
+
 ## References
 
 - [gnuton/asuswrt-merlin.ng](https://github.com/gnuton/asuswrt-merlin.ng): GNUton's builds of Asuswrt-Merlin for extra models, including the ZenWiFi XT8 (RT-AX95Q).
@@ -437,6 +441,6 @@ The only matches allowed are lines inside `/jffs/scripts/firewall` (that file is
 - [Asuswrt-Merlin wiki: Entware](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Entware): the package manager the add-ons need, and its USB disk requirement.
 - [amtm](https://github.com/decoderman/amtm): the terminal menu used to install the add-ons.
 - [Skynet (IPSet_ASUS)](https://github.com/Adamm00/IPSet_ASUS): the firewall add-on and its USB requirement.
-- [YazDHCP](https://github.com/jackyaz/YazDHCP): the DHCP reservation add-on.
+- [YazDHCP](https://github.com/AMTM-OSR/YazDHCP): the DHCP reservation add-on (the earlier `jackyaz/YazDHCP` repository is archived).
 - [scribe](https://github.com/AMTM-OSR/scribe): the syslog-ng and logrotate installer.
 - [dnsmasq manual page](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html): every dnsmasq option the postconf script appends.

@@ -334,6 +334,10 @@ To remove the cgroup settings, edit `/boot/firmware/cmdline.txt` and delete the 
 
 DNS Director forces every device's DNS queries to one server, typically Pi-hole. That would silently redirect the nodes' queries to `1.1.1.1` back into the cluster, which recreates the dependency this page removes. Give each node a per-device rule that keeps it away from Pi-hole. This build uses **Router**, which has the router's own resolver answer the node. See [ASUS ZenWiFi XT8](asus-zenwifi-xt8.md) and [DNS design](../network/dns-design.md).
 
+## Firmware and updates
+
+Raspberry Pi Imager, Raspberry Pi OS releases, bootloader (EEPROM) updates and the boot order are covered in [Software and firmware](../operations/software-and-firmware.md#raspberry-pi-bootloader-eeprom-and-boot-order). A first boot from an SD card followed by a move to an SSD or NVMe drive is in [From nothing to a full deployment](../start-here/build-from-nothing.md#phase-5-raspberry-pis).
+
 ## References
 
 - [Raspberry Pi computer hardware](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html): boot EEPROM, bootloader configuration and USB mass storage boot for every model.

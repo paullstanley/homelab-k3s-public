@@ -2,6 +2,21 @@
 
 Every external document cited by the guides, grouped by the page that cites it. Each link was opened and checked when its page was written, except where a line says otherwise. Sites change; if a link is dead, search for its title.
 
+## Start here
+
+### [From nothing to a full deployment](start-here/build-from-nothing.md)
+
+- [gnuton/asuswrt-merlin.ng releases](https://github.com/gnuton/asuswrt-merlin.ng/releases): GNUton firmware files for the RT-AX95Q, with `.md5` checksums.
+- [Asuswrt-Merlin wiki: Installation](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Installation): flashing from stock, when to reset, recovery mode.
+- [Asuswrt-Merlin wiki: Reverting](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Reverting): going back to ASUS stock firmware.
+- [Asuswrt-Merlin wiki: AiMesh](https://github.com/RMerl/asuswrt-merlin.ng/wiki/AiMesh): which firmware a node may run and how Merlin nodes are updated.
+- [Asuswrt-Merlin wiki: Entware](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Entware): installing Entware with amtm and the disk format it needs.
+- [Asuswrt-Merlin wiki: AMTM](https://github.com/RMerl/asuswrt-merlin.ng/wiki/AMTM): what amtm is and how to start it.
+- [OpenWrt sysupgrade data for the Archer A7 v5](https://sysupgrade.openwrt.org/json/v1/releases/25.12.5/targets/ath79/generic/tplink_archer-a7-v5.json): the exact factory and sysupgrade image names for 25.12.5.
+- [Raspberry Pi documentation: Install an operating system](https://raw.githubusercontent.com/raspberrypi/documentation/master/documentation/asciidoc/computers/getting-started/install.adoc): Imager steps, customisation and Network Install.
+- [Raspberry Pi documentation: bootloader configuration](https://raw.githubusercontent.com/raspberrypi/documentation/master/documentation/asciidoc/computers/raspberry-pi/eeprom-bootloader.adoc): `BOOT_ORDER` and `PCIE_PROBE`.
+- [Helm: Installing Helm](https://helm.sh/docs/intro/install/): the install script and package options.
+
 ## Hardware
 
 ### [Second XT8 as an AiMesh node](hardware/asus-aimesh-node.md)
@@ -21,7 +36,7 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [Asuswrt-Merlin wiki: Entware](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Entware): the package manager the add-ons need, and its USB disk requirement.
 - [amtm](https://github.com/decoderman/amtm): the terminal menu used to install the add-ons.
 - [Skynet (IPSet_ASUS)](https://github.com/Adamm00/IPSet_ASUS): the firewall add-on and its USB requirement.
-- [YazDHCP](https://github.com/jackyaz/YazDHCP): the DHCP reservation add-on.
+- [YazDHCP](https://github.com/AMTM-OSR/YazDHCP): the DHCP reservation add-on (the earlier `jackyaz/YazDHCP` repository is archived).
 - [scribe](https://github.com/AMTM-OSR/scribe): the syslog-ng and logrotate installer.
 - [dnsmasq manual page](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html): every dnsmasq option the postconf script appends.
 
@@ -241,6 +256,38 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [k3s: Networking services](https://docs.k3s.io/networking/networking-services): the bundled CoreDNS, Traefik and ServiceLB that an upgrade redeploys.
 - [Asuswrt-Merlin wiki: Scheduled tasks (cron jobs)](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Scheduled-tasks-(cron-jobs)): the `cru` command and why jobs must be re-added at boot.
 - [Asuswrt-Merlin wiki: User scripts](https://github.com/RMerl/asuswrt-merlin.ng/wiki/User-scripts): `services-start` and the other `/jffs/scripts` hooks.
+
+### [Reviewing a home network like this one](operations/security-review.md)
+
+- [Asuswrt-Merlin changelog](https://www.asuswrt-merlin.net/changelog): UPnP off by default from 388.10, AiCloud removed in 388.11, WireGuard and hardware NAT, OpenVPN changes in 388.12.
+- [Asuswrt-Merlin wiki: DNS Director](https://github.com/RMerl/asuswrt-merlin.ng/wiki/DNS-Director): what the per-device DNS rules do, for reviewing them.
+- [gnuton/asuswrt-merlin.ng releases](https://github.com/gnuton/asuswrt-merlin.ng/releases): the current firmware to compare against.
+- [OpenWrt dropbear default configuration](https://raw.githubusercontent.com/openwrt/openwrt/main/package/network/services/dropbear/files/dropbear.config): the `PasswordAuth` and `RootPasswordAuth` options and their defaults.
+- [OpenWrt uhttpd default configuration](https://raw.githubusercontent.com/openwrt/openwrt/main/package/network/services/uhttpd/files/uhttpd.config): the `redirect_https` option and the HTTP and HTTPS listeners.
+- [OpenWrt 25.12.5 service release](https://forum.openwrt.org/t/openwrt-25-12-5-service-release/251479): the security fixes, and known issues such as 802.11r with WPA3.
+- [Cloudflare: cloudflared proxy-dns deprecation](https://developers.cloudflare.com/changelog/post/2025-11-11-cloudflared-proxy-dns/): why the DNS-over-HTTPS sidecar needs replacing.
+- [crazy-max/docker-cloudflared](https://github.com/crazy-max/docker-cloudflared): the archived sidecar image.
+- [k8s-at-home/charts](https://github.com/k8s-at-home/charts): the archived chart repository the Homebridge chart comes from.
+- [K3s: Manual upgrades](https://docs.k3s.io/upgrades/manual): the one-minor-at-a-time rule behind the version drift item.
+
+### [Software and firmware: where to get it and how to update it](operations/software-and-firmware.md)
+
+- [gnuton/asuswrt-merlin.ng releases](https://github.com/gnuton/asuswrt-merlin.ng/releases): GNUton firmware for the RT-AX95Q and its changelogs.
+- [Asuswrt-Merlin changelog](https://www.asuswrt-merlin.net/changelog): the upstream changes GNUton builds inherit.
+- [Asuswrt-Merlin wiki: AiMesh](https://github.com/RMerl/asuswrt-merlin.ng/wiki/AiMesh): firmware rules and manual updates for nodes.
+- [amtm](https://diversion.ch/amtm.html): the current amtm version and its update features.
+- [AMTM-OSR on GitHub](https://github.com/AMTM-OSR): the new home of scribe, YazDHCP, uiScribe and scMerlin.
+- [OpenWrt 25.12.5 service release](https://forum.openwrt.org/t/openwrt-25-12-5-service-release/251479): what the release fixes and why to upgrade.
+- [OpenWrt 25.12 released with apk replacing opkg](https://linuxiac.com/openwrt-25-12-released-with-apk-package-manager-replacing-opkg/): the package manager change and upgrade paths.
+- [TP-Link: How to update the firmware](https://www.tp-link.com/us/support/faq/2796/): manual firmware upgrade on TP-Link routers.
+- [Raspberry Pi documentation: updating the bootloader](https://raw.githubusercontent.com/raspberrypi/documentation/master/documentation/asciidoc/computers/raspberry-pi/boot-eeprom.adoc): `rpi-eeprom-update` and release streams.
+- [K3s: Manual upgrades](https://docs.k3s.io/upgrades/manual): re-running the installer, version pinning and the no-skipping rule.
+- [K3s: Automated upgrades](https://docs.k3s.io/upgrades/automated): the system-upgrade-controller and `Plan` objects.
+- [K3s: etcd-snapshot](https://docs.k3s.io/cli/etcd-snapshot): snapshot defaults and restore.
+- [MetalLB release notes](https://metallb.io/release-notes/): the 0.16 FRR-K8s default and other breaking changes.
+- [Cloudflare: cloudflared proxy-dns deprecation](https://developers.cloudflare.com/changelog/post/2025-11-11-cloudflared-proxy-dns/): the removal date and the support window.
+- [Pi-hole: upgrading the Docker image](https://docs.pi-hole.net/docker/upgrading/): why `pihole -up` is disabled in containers.
+- [Lima: VMNet networks](https://lima-vm.io/docs/config/network/vmnet/): installing socket_vmnet securely and the sudoers file.
 
 ### [Troubleshooting](operations/troubleshooting.md)
 

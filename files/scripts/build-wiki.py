@@ -31,6 +31,7 @@ import os, re, subprocess, sys
 PAGES = [
     ("Start here", [
         ("start-here/overview",                    "Overview"),
+        ("start-here/build-from-nothing",          "Build-from-nothing"),
         ("start-here/conventions",                 "Conventions"),
     ]),
     ("Hardware", [
@@ -67,6 +68,8 @@ PAGES = [
         ("operations/backups-and-secrets",         "Backups-and-secrets"),
         ("operations/maintenance",                 "Maintenance"),
         ("operations/troubleshooting",             "Troubleshooting"),
+        ("operations/software-and-firmware",       "Software-and-firmware"),
+        ("operations/security-review",             "Security-review"),
         ("references",                             "References"),
     ]),
 ]

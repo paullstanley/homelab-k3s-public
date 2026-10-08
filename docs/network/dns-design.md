@@ -161,7 +161,7 @@ The router's own lookups, and those of the "Router"-rule devices, then leave une
 
 **Tell the bootstrap script which one you chose.** At the top of [`xt8-bootstrap.sh`](../../files/xt8/xt8-bootstrap.sh), `WAN_DNS` and `WAN_DNS2` are the two servers and `WAN_DOT` is `1` for Option A or `0` for Option B. The script sets the plain server fields either way. It does **not** switch DoT on; do that in the GUI. `verify` then checks whichever you declared: with `WAN_DOT=1`, that DoT is on, `stubby` is running and both servers are in the DoT list; with `WAN_DOT=0`, that dnsmasq's upstream is exactly those servers.
 
-> **Not verified:** the DoT checks read the nvram keys `dnspriv_enable` and `dnspriv_rulelist`. They were written from the firmware's settings names and have not been run on a router. If `verify` reports a DoT FAIL while the WAN page plainly shows DoT working, check those two keys with `nvram get`.
+> **Checked on GNUton Asuswrt-Merlin 3004.388.10_2:** with DoT on, `nvram get dnspriv_enable` prints `1` and `nvram get dnspriv_rulelist` prints `<1.1.1.1>>cloudflare-dns.com><1.0.0.1>>cloudflare-dns.com>` (one `<address>port>hostname>fingerprint>` group per server, empty fields left empty). The `verify` checks read exactly these. If you export settings with a filter that drops keys containing `priv`, these two disappear from the export; that does not mean they are unset.
 
 ### Step 5. Refuse DNS on the router over IPv6
 

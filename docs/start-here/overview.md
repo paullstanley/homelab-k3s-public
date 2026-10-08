@@ -4,6 +4,8 @@ This wiki describes one complete home setup and breaks it into modules you can u
 
 Example addresses and names are explained in [Conventions](conventions.md); substitute your own.
 
+To build the whole thing in order, from flashing the firmware onwards, follow [From nothing to a full deployment](build-from-nothing.md).
+
 ## The whole build on one page
 
 ```mermaid

@@ -368,6 +368,10 @@ More symptoms across the whole build: [Troubleshooting](../operations/troublesho
 - **Back to a router:** **System → Backup / Flash Firmware → Perform reset**. The device returns to `192.168.1.1` with DHCP on and the firewall running. Unplug it from the main LAN first.
 - **Remove only the weekly reboot:** delete the line in **System → Scheduled Tasks**.
 
+## Firmware and updates
+
+The exact factory and sysupgrade image names for the Archer A7 v5, how to check them against `sha256sums`, Attended Sysupgrade versus `sysupgrade -v`, and the move from `opkg` to `apk` in 25.12: [Software and firmware](../operations/software-and-firmware.md#openwrt-on-the-archer-a7-v5). Flashing from TP-Link stock firmware is in [From nothing to a full deployment](../start-here/build-from-nothing.md#step-41-flash-openwrt-onto-the-archer-a7-v5).
+
 ## References
 
 - [OpenWrt Firmware Selector](https://firmware-selector.openwrt.org/): finds the right firmware image for the Archer A7 v5 and links to the device's page with flashing instructions.

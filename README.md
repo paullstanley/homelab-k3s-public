@@ -4,7 +4,7 @@ A set of step-by-step guides for building and looking after a home network with 
 
 The guides are **modular**. Each page stands on its own: if you only own one of these devices, or only want Pi-hole on k3s, go straight to that page. Each one lists what it needs first.
 
-**New here?** Read [Overview](docs/start-here/overview.md) for how the pieces fit, then [Conventions](docs/start-here/conventions.md) for the example names and addresses used everywhere.
+**New here?** Read [Overview](docs/start-here/overview.md) for how the pieces fit, then [Conventions](docs/start-here/conventions.md) for the example names and addresses used everywhere. To build everything from scratch, follow [From nothing to a full deployment](docs/start-here/build-from-nothing.md).
 
 **Something is broken?** Go to [Troubleshooting](docs/operations/troubleshooting.md). It is organised by symptom.
 
@@ -38,6 +38,7 @@ The guides are **modular**. Each page stands on its own: if you only own one of 
 | A request app reachable from outside without opening a port | [Seerr behind a Cloudflare tunnel](docs/apps/seerr-cloudflare-tunnel.md) |
 | Home names working on a laptop with a corporate VPN | [Client devices](docs/apps/client-devices.md) |
 | To understand what your router log is telling you | [Router logging](docs/network/router-logging.md) |
+| To build the whole thing from scratch, in order, including flashing the firmware | [From nothing to a full deployment](docs/start-here/build-from-nothing.md) |
 
 ### Running it
 
@@ -46,12 +47,14 @@ The guides are **modular**. Each page stands on its own: if you only own one of 
 | Prove a build or a change works | [Verification](docs/operations/verification.md) |
 | Back everything up, and keep secrets out of Git | [Backups and secrets](docs/operations/backups-and-secrets.md) |
 | Reboots, upgrades, periodic checks | [Maintenance](docs/operations/maintenance.md) |
+| Where each firmware and software package comes from, and how to update it | [Software and firmware](docs/operations/software-and-firmware.md) |
+| Review the router and access point settings, and export them without leaking secrets | [Security review](docs/operations/security-review.md) |
 | Fix a problem | [Troubleshooting](docs/operations/troubleshooting.md) |
 | Every external document these guides cite | [References](docs/references.md) |
 
 ## Build order for the whole thing
 
-Each step depends on the ones above it. Skip what you do not have.
+The short version is below. The full version, with downloads, flashing, first boot, Helm and a checkpoint per phase, is [From nothing to a full deployment](docs/start-here/build-from-nothing.md). Each step depends on the ones above it. Skip what you do not have.
 
 | # | Step | Guide |
 | --- | --- | --- |
