@@ -31,9 +31,9 @@ Set these by hand after a factory reset. The bootstrap script sets the rows mark
 | IPv6 | Connection type (script) | **Disable**. Local IPv6 comes from the scripts |
 | Administration → System | Enable JFFS custom scripts and configs (script) | Yes |
 | Administration → System | Enable SSH | LAN only, port 666 |
-| Administration → System | Scheduled reboot | Weekly, about 4 am (recommended in September; confirm it is set) |
+| Administration → System | Scheduled reboot | Main router: weekly, about 4 am (recommended in September; confirm it is set). The node has its own, set by script: see "The AiMesh node" |
 | USB drive | Mount point | `/tmp/mnt/gateway` (Skynet lives in `/tmp/mnt/gateway/skynet`) |
-| AiMesh | Node | Re-add the second XT8, wired backhaul |
+| AiMesh | Node | Re-add the second XT8, wired backhaul. Then run the node script: see "The AiMesh node" |
 | Firewall → General | SPI firewall, DoS protection | On. Respond to WAN ping: off |
 | VPN | IPSec server | On (remote access to the LAN) |
 | QoS | | Off. Turning any QoS mode on disables hardware NAT acceleration |
@@ -71,11 +71,21 @@ ip -4 -o addr show | grep 192.168.101
 brctl show
 ```
 
-The first command must print a bridge with `192.168.101.1/24`. The second must list `wl0.1` under that bridge. If the guest Wi-Fi interface has another name, change `GUEST_WL` at the top of `xt8-bootstrap.sh` before running it.
+The first command must print a bridge with `192.168.101.1/24`. The second must list `wl0.1` under that bridge, and `eth1.501` to `eth6.501`. Those `.501` members are the guest network leaving every LAN port as tagged VLAN 501. Confirmed on 3 October. The Archer A7 picks that VLAN up to broadcast `Home-IoT` as well ([03](03-access-points.md)). If the guest Wi-Fi interface has another name, change `GUEST_WL` at the top of `xt8-bootstrap.sh` before running it.
 
 ### Add-ons
 
-Reinstall Skynet, YazDHCP and Scribe through `amtm`, with Skynet's data on the USB drive. **Do not reinstall dnscrypt-proxy.** Its manager caused about 550 dnsmasq restarts in one day and was removed on 1 October.
+Reinstall Skynet, YazDHCP and Scribe through `amtm`, with Skynet's data on the USB drive.
+
+**After installing Scribe, its log rotation needs one folder that nothing creates.** The bootstrap script now makes it (`/opt/var/lib`) and `verify` checks it. By hand:
+
+```sh
+mkdir -p /opt/var/lib
+/opt/sbin/logrotate /opt/etc/logrotate.conf
+logger "rotation test"; sleep 2; ls -la /opt/var/log/messages*
+```
+
+`messages` must be small and growing, with the old log beside it as `messages-<date>`. Until 7 October the folder was missing: `/opt/var/log/logrotate.log` showed "error creating stub state file /opt/var/lib/logrotate.status" every night at 00:05 and `messages` had reached 25.6 MB. **Do not reinstall dnscrypt-proxy.** Its manager caused about 550 dnsmasq restarts in one day and was removed on 1 October.
 
 ## Part 2. The bootstrap script
 
@@ -98,7 +108,7 @@ What `install` does:
 
 1. Refuses to run unless the router's LAN address is 192.168.50.1.
 2. Copies every file it is about to change into `/jffs/homenet-backups/`.
-3. Writes the five files in [`network/xt8/jffs-scripts/`](../network/xt8/jffs-scripts/) to `/jffs/scripts/`.
+3. Writes the five files in [`network/xt8/jffs-scripts/`](../network/xt8/jffs-scripts/) to `/jffs/scripts/`, and creates Scribe's logrotate folder if Scribe is installed.
 4. Applies the nvram settings marked (script) above and prints each as `ok` or `CHANGED`.
 5. Restarts dnsmasq and the firewall.
 6. Runs `verify` and prints PASS or FAIL per check.
@@ -134,7 +144,7 @@ Without one, re-enter them in the GUI. DNS Director exceptions as last read on 2
 
 | Rule | Devices |
 | --- | --- |
-| User Defined 2 (1.1.1.1) | k3sprimary, DC-01 (`02:00:00:00:00:02`), MBP-Server-LAN, `02:00:00:00:00:03`, Owners-Work-Macbook, `02:00:00:00:00:04` |
+| User Defined 2 (1.1.1.1) | k3sprimary, DC-01 (`02:00:00:00:00:03`), MBP-Server-LAN, `02:00:00:00:00:04`, Owners-Work-Macbook, `02:00:00:00:00:05` |
 | User Defined 3 | Three devices (not recorded which) |
 
 ### The k3s nodes and DNS Director
@@ -145,8 +155,8 @@ Add all three to DNS Director as **User Defined 2** (or **No Redirection**):
 
 | Device | MAC |
 | --- | --- |
-| funkyfresh | `02:00:00:00:00:05` |
-| k3snode2 | `02:00:00:00:00:06` |
+| funkyfresh | `02:00:00:00:00:06` |
+| k3snode2 | `02:00:00:00:00:07` |
 | lima-k3s-mac | `52:55:55:15:F1:69` |
 
 I have not confirmed the redirect on your router. The check, on funkyfresh, while watching the Pi-hole query log: `nslookup example.com 1.1.1.1`. If the query shows up in Pi-hole, the node is being redirected.
@@ -169,6 +179,7 @@ sh /jffs/xt8-bootstrap.sh verify
 | Guest bridge | The guest network does not exist yet or uses another subnet |
 | `ebtables` rule count | `sh /jffs/scripts/kasa-guest-allow.sh`. If it stays wrong, check `GUEST_WL` against `brctl show` |
 | Pi-hole answers on IPv4 | Pi-hole is down or not built yet ([07](07-pihole.md)) |
+| Scribe: logrotate state folder | `mkdir -p /opt/var/lib`. If it keeps disappearing, the USB drive was reformatted or is failing |
 
 ## What each installed piece does
 
@@ -183,6 +194,32 @@ sh /jffs/xt8-bootstrap.sh verify
 | `ra-param=br0,0,0` | Router lifetime 0: clients get addresses but **no IPv6 default route**, so internet traffic stays on IPv4 |
 | `dhcp-range=::,constructor:br0,ra-stateless,64,12h` | SLAAC addresses. `ra-names` was deliberately left out |
 | `option6:dns-server` | Pi-hole is the only IPv6 DNS server advertised |
+| no `quiet-ra` | Deliberate. dnsmasq then logs every advertisement it sends; see below |
+
+#### Seeing IPv6 on the router
+
+**System Log → IPv6 says "IPv6 Not enabled" and always will.** That page only fills in when IPv6 is enabled in the UI, which must stay on Disable. The same information over SSH on the router:
+
+```sh
+ip -6 addr show dev br0
+ip -6 neigh show dev br0
+ip -6 route
+```
+
+The first is the router's own addresses, the second is every client's IPv6 address with its MAC, and the third must have no `default` line.
+
+**Advertisement logging.** With no `quiet-ra` line, `/opt/var/log/messages` gets these:
+
+| Line | Meaning |
+| --- | --- |
+| `RTR-ADVERT(br0) fd00:1234:5678:50::` | The router announced the prefix. A burst after each dnsmasq restart, then one every few minutes |
+| `RTR-SOLICIT(br0)` | A client asked for an advertisement, usually on joining or waking |
+
+Watch them live with `tail -f /opt/var/log/messages | grep -e RTR- -e SLAAC`.
+
+Until 7 October the live `/jffs/scripts/dnsmasq.postconf` had a line `pc_append "quiet-ra" "$CONFIG"` (line 25) that hid these. It was commented out that day; the file before the change is `/jffs/scripts/dnsmasq.postconf.bak`. That line was never part of this repo's block, so a rebuild from the bootstrap script gives the logging by default. To silence it again, add the line back **below** the `# <<< homenet END` marker, then `service restart_dnsmasq`. The lines name the interface, not the client; for "which device has which address" use `ip -6 neigh`.
+
+`DHCPSOLICIT(br0)` lines with no reply are one device asking for a DHCPv6 address. The router only does SLAAC, so nothing answers. Harmless.
 
 ### `firewall-start`: IPv6 filter and the Homebridge path
 
@@ -210,9 +247,56 @@ Healthy output is six `-j ACCEPT` lines followed by the two `192.168.50.0/24 ...
 
 A Wi-Fi restart rebuilds the `ebtables` rules and removes ours. `service-event-end` re-runs the script ten seconds after any `wireless`, `net_and_phy` or `allnet` restart.
 
+## The AiMesh node
+
+The second XT8 ("Master Bedroom", hostname `ZenWiFi_XT8-0000`) was at 192.168.50.117 on 6 October. It runs the same firmware and accepts the main router's SSH login on the same port. It has no USB drive, no Entware and no Scribe; its log lives in memory, limits its own size and is lost at every reboot.
+
+### Weekly reboot
+
+The node reboots every Wednesday at 03:30 from a cron job. **Paste on: your Mac**, in the root of this repo.
+
+```sh
+sh network/xt8/node/xt8-node-setup.sh 192.168.50.117
+```
+
+The arguments are the node's address, then optionally the SSH user (default `homeuser`) and port (default `666`). `ssh` asks for the password once. The password is not an argument on purpose: arguments end up in shell history. For an unattended run, see the `SSHPASS` note at the top of the script. A different time: `REBOOT_AT="0 4 * * 0" sh network/xt8/node/xt8-node-setup.sh 192.168.50.117`.
+
+What it does on the node:
+
+| Step | Why |
+| --- | --- |
+| Refuses if the device's LAN address is 192.168.50.1 | So it can never put the job on the main router by mistake |
+| `nvram set jffs2_scripts=1` | Without it the firmware ignores `/jffs/scripts` at boot. The node has no web UI to tick the box in |
+| `nvram set reboot_schedule_enable=0` | Turns the firmware's own scheduler off so the node is not rebooted twice |
+| Adds `cru a WeeklyReboot "30 3 * * 3 /sbin/reboot"` to `/jffs/scripts/services-start` | `cru` jobs are lost at reboot; this file runs at every boot and adds the job back. amtm's existing line in that file is kept |
+| Runs the same `cru a` once | So the job exists now, without a reboot |
+
+The node's `services-start` as it stood on 6 October is in [`network/xt8/node/services-start`](../network/xt8/node/services-start).
+
+Check it, on the node:
+
+```sh
+cru l
+nvram get jffs2_scripts
+uptime
+```
+
+One line ending `#WeeklyReboot#`, then `1`. After a Wednesday, `uptime` must show under a week and `cru l` must still list the job; that second part proves `services-start` ran by itself at boot, which had not been observed when this was written.
+
+Things learned doing it by hand:
+
+- **The firmware's own scheduler never appears in `cru l`.** `nvram set reboot_schedule=00010000330` (seven day flags Sunday to Saturday, then HHMM) with `reboot_schedule_enable=1` is the GUI setting, and it is run by the watchdog, not cron. An empty `cru l` says nothing about it. The cron job was chosen because it can be seen.
+- **`grep: /jffs/addons/custom_settings.txt: No such file or directory`** when running `services-start` by hand comes from amtm's line. Harmless.
+- **AiMesh sync might overwrite node settings.** Not seen so far. If the job is gone after the main router restarts, run the script again and note it in [15](15-open-items.md).
+- **Do not install Scribe on the node.** It would need a second USB drive and Entware, for a log that is mostly Wi-Fi association chatter the main router already records.
+
+### Moving wireless devices between the two units
+
+The script that kicks a wireless device off one unit so it reconnects to the other is **not in this repo yet**: it was written in a session I do not have. It belongs in `xt8-bootstrap.sh`. See [15](15-open-items.md).
+
 ## Things that will bite you again
 
-- **The IPv6 page must stay on Disable.** Every other mode either needs an ISP prefix or makes the router advertise itself as DNS.
+- **The IPv6 page must stay on Disable.** Every other mode either needs an ISP prefix or makes the router advertise itself as DNS. The price is that System Log → IPv6 stays blank; use the SSH commands under "Seeing IPv6 on the router".
 - **amtm or firmware actions can switch `br0` IPv6 off.** `service restart_dnsmasq` brings it back.
 - **The Pi-hole address does not answer ping.** Test with `nslookup example.com 192.168.50.11`.
 - **One page at a time in the web UI.** Several simultaneous requests froze it.

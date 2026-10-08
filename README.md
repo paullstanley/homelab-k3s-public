@@ -2,7 +2,7 @@
 
 > **Public copy.** The domain, names, MAC addresses, serial numbers, IPv6 ranges and Wi-Fi names in this repository are made-up stand-ins. Passwords and tokens are placeholders. Substitute your own values.
 
-Everything needed to put the house network and the k3s cluster back the way they were on 6 October 2026: guides, Helm values, manifests and scripts. Passwords, tokens and data backups are **not** here; [docs/13](docs/13-backups-and-secrets.md) lists what they are and where they go.
+Everything needed to put the house network and the k3s cluster back the way they were on 8 October 2026: guides, Helm values, manifests and scripts. Passwords, tokens and data backups are **not** here; [docs/13](docs/13-backups-and-secrets.md) lists what they are and where they go.
 
 Two rules that hold everywhere in this repo:
 
@@ -15,14 +15,14 @@ This is the **private** copy. To produce the shareable one with personal details
 
 | Address | What |
 | --- | --- |
-| 192.168.50.1 | ASUS ZenWiFi XT8 router (AiMesh, second unit wired) |
+| 192.168.50.1 | ASUS ZenWiFi XT8 router (AiMesh, second unit wired, at .117) |
 | 192.168.50.3, .4 | Access points: Archer A7 (OpenWrt), Archer AX21 |
 | 192.168.50.5, .6, .7 | Raspberry Pi k3s servers: k3sprimary, funkyfresh, k3snode2 |
 | 192.168.50.146 | Fourth k3s server: Lima VM on the M1 MacBook Pro |
 | 192.168.50.10 | Kubernetes API (kube-vip) |
 | 192.168.50.11 | Pi-hole, three pods, DNS for the house (MetalLB) |
 | 192.168.50.12 | Traefik: Pi-hole UI, Homebridge, Seerr (MetalLB) |
-| 192.168.101.0/24 | Isolated guest/IoT network: Kasa and Wyze devices |
+| 192.168.101.0/24 | Isolated guest/IoT network: Kasa and Wyze devices. Broadcast by the XT8 and the Archer A7 |
 
 Full list of addresses, names and every device: [docs/01](docs/01-inventory.md).
 
@@ -33,7 +33,7 @@ Each step depends on the ones above it. If only one thing broke, go straight to 
 | # | What | Guide | Files |
 | --- | --- | --- | --- |
 | 1 | XT8: GUI settings, guest/IoT network, bootstrap script, device lists | [02](docs/02-router-xt8.md) | `network/xt8/` |
-| 2 | Access points | [03](docs/03-access-points.md) | `network/archer-a7/` |
+| 2 | Access points, IoT network on the A7, weekly reboots | [03](docs/03-access-points.md), [02](docs/02-router-xt8.md) "The AiMesh node" | `network/archer-a7/`, `network/xt8/node/` |
 | 3 | Raspberry Pis: OS, fixed addresses, k3s servers, CoreDNS replicas | [04](docs/04-k3s-cluster.md) | `k3s/config/` |
 | 4 | MetalLB, Traefik address, kube-vip | [06](docs/06-load-balancers.md) | `metallb/`, `traefik/`, `k3s/kube-vip/` |
 | 5 | Pi-hole | [07](docs/07-pihole.md) | `pihole/values.yaml` |
@@ -62,6 +62,7 @@ When something is wrong: [docs/14](docs/14-troubleshooting.md). What is unfinish
 | Home names not resolving on the work Mac | [11](docs/11-clients.md) |
 | Routers not sending IPv6 advertisements | [02](docs/02-router-xt8.md) |
 | Homebridge plugins failing DNS lookups (`getaddrinfo ENOTFOUND`): a host-network pod cannot reach the IPv6 cluster DNS address | [08](docs/08-homebridge.md) Step 1, [04](docs/04-k3s-cluster.md) Step 8, [14](docs/14-troubleshooting.md) A10 |
+| Router log growing without limit (Scribe's logrotate had no state folder) | [02](docs/02-router-xt8.md), Add-ons |
 
 ## What is in each folder
 
@@ -69,7 +70,8 @@ When something is wrong: [docs/14](docs/14-troubleshooting.md). What is unfinish
 | --- | --- | --- |
 | `docs/` | Current | The guides |
 | `network/xt8/` | Current | `xt8-bootstrap.sh` and reference copies of the JFFS scripts it installs |
-| `network/archer-a7/` | Current | `a7-ap-setup.sh` |
+| `network/xt8/node/` | Current | `xt8-node-setup.sh` (weekly reboot of the AiMesh node, run from the Mac) and a copy of the node's `services-start` |
+| `network/archer-a7/` | Current | `a7-ap-setup.sh`, `a7-iot-ssid.sh`, `a7-backup.sh` |
 | `k3s/config/` | Current | `/etc/rancher/k3s/config.yaml` for each of the four servers |
 | `k3s/kube-vip/` | Current | The kube-vip HelmChart |
 | `k3s/lima/` | Reconstructed | Lima VM definition; replace with the real one |
@@ -85,21 +87,23 @@ When something is wrong: [docs/14](docs/14-troubleshooting.md). What is unfinish
 | `Overseer/` | Retired | Replaced by Seerr. Kept for reference |
 | `portainer/`, `flame/`, `homarr/`, `code-server/`, `letsencrypt/`, `Ingresses/` | Templates | Generic examples with placeholder hosts, not part of the running setup. Untouched |
 
-## Changes made to this repo on 4 October 2026
+## Changes made to this repo on 7 and 8 October 2026
 
 | File | Change |
 | --- | --- |
-| `README.md` | Replaced. The old one described a generic two-Pi install on 192.168.0.x with agents; the Pi preparation steps that still apply moved to [docs/04](docs/04-k3s-cluster.md) |
-| `pihole/values.yaml` | Three replicas, Traefik ingress with sticky cookie, every device name, pull policy, placement fix for upgrades, encryption sidecar pinned to 2025.9.1. **Admin password removed** and moved to a Secret |
-| `firewall/k3s-firewall.sh` | Allowed range widened to 192.168.0.0/16 for VPN access |
-| `Seerr/values.yaml` | Service on port 80, time zone fixed, unused blocks removed |
-| `Homebridge/values.yaml` | Real host name, HTTPS redirect, pull policy, plugin installs removed from the startup script |
-| `metallb/config.yaml` | Real pools: 192.168.50.11 to .15 and the Pi-hole IPv6 address |
-| `metallb/values.yaml` | **Deleted.** It was a copy of the MetalLB config under a misleading name, with the old .10 to .15 pool |
-| `Ingresses/ traefik/argocd` | Renamed to `Ingresses/traefik/argocd.yaml` (the folder name started with a space). Contents unchanged; note its `traefik.containo.us` API version is the old one |
-| `Ingresses/nginx/example-web app.yaml` | Renamed to `example-web-app.yaml` |
-| `.DS_Store` files | Removed; `.gitignore` added |
-| Everything else listed as Current above | New |
+| `network/archer-a7/a7-iot-ssid.sh` | New. Adds the isolated `Home-IoT` SSID (VLAN 501) to the A7 |
+| `network/xt8/node/xt8-node-setup.sh` | New. Weekly reboot for the AiMesh node; takes the node's address, SSH user and port |
+| `network/xt8/node/services-start` | New. Reference copy of the node's boot script |
+| `network/archer-a7/a7-backup.sh` | New. Pulls a checked settings backup off the A7 to the Mac |
+| `network/archer-a7/a7-ap-setup.sh` | Schedules the A7's weekly reboot (Wednesday 03:30) |
+| `network/xt8/xt8-bootstrap.sh` | Creates Scribe's logrotate state folder and checks it in `verify` |
+| [docs/02](docs/02-router-xt8.md) | The AiMesh node, weekly reboot, Scribe log rotation, seeing and logging IPv6, VLAN 501 confirmed |
+| [docs/03](docs/03-access-points.md) | IoT network on the A7, weekly reboot, live Wi-Fi and switch settings as read on 3 October |
+| [docs/01](docs/01-inventory.md), [13](docs/13-backups-and-secrets.md), [14](docs/14-troubleshooting.md) | Node address, new A7 backup, new troubleshooting rows |
+| [docs/15](docs/15-open-items.md) | "Added 7 October": what is still missing from this repo, and findings from the router log review |
+| `scripts/make-public.py` | Replaces the node's hostname |
+
+**Not in yet:** the script that moves wireless devices between the XT8 units. See [docs/15](docs/15-open-items.md).
 
 ## Changes made to this repo on 6 October 2026
 
@@ -118,3 +122,19 @@ All from one piece of work: Homebridge's Wyze and Resideo plugins were failing D
 | [docs/15](docs/15-open-items.md) | New open and unverified items; two old ones closed |
 
 Changed on the live cluster the same day, by command (nothing in this repo applies them): CoreDNS restarted and scaled to three replicas; `~/helm/homebridge/values.yaml` on k3sprimary given the DNS block and applied with `helm upgrade`.
+
+## Changes made to this repo on 4 October 2026
+
+| File | Change |
+| --- | --- |
+| `README.md` | Replaced. The old one described a generic two-Pi install on 192.168.0.x with agents; the Pi preparation steps that still apply moved to [docs/04](docs/04-k3s-cluster.md) |
+| `pihole/values.yaml` | Three replicas, Traefik ingress with sticky cookie, every device name, pull policy, placement fix for upgrades, encryption sidecar pinned to 2025.9.1. **Admin password removed** and moved to a Secret |
+| `firewall/k3s-firewall.sh` | Allowed range widened to 192.168.0.0/16 for VPN access |
+| `Seerr/values.yaml` | Service on port 80, time zone fixed, unused blocks removed |
+| `Homebridge/values.yaml` | Real host name, HTTPS redirect, pull policy, plugin installs removed from the startup script |
+| `metallb/config.yaml` | Real pools: 192.168.50.11 to .15 and the Pi-hole IPv6 address |
+| `metallb/values.yaml` | **Deleted.** It was a copy of the MetalLB config under a misleading name, with the old .10 to .15 pool |
+| `Ingresses/ traefik/argocd` | Renamed to `Ingresses/traefik/argocd.yaml` (the folder name started with a space). Contents unchanged; note its `traefik.containo.us` API version is the old one |
+| `Ingresses/nginx/example-web app.yaml` | Renamed to `example-web-app.yaml` |
+| `.DS_Store` files | Removed; `.gitignore` added |
+| Everything else listed as Current above | New |

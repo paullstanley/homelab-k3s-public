@@ -199,6 +199,17 @@ do_scripts() {
   install_block "$S/firewall-start"     "$T/firewall" 'Local-only IPv6 filtering\|kasa-guest-allow'
   install_block "$S/service-event-end"  "$T/event"    'kasa-guest-allow'
   rm -rf "$T"
+  fix_logrotate
+}
+
+# Scribe's nightly logrotate keeps its state in /opt/var/lib. Entware does not create
+# that folder, and without it every run fails ("error creating stub state file") and
+# /opt/var/log/messages grows without limit. Found on 7 Oct 2026 at 25 MB.
+OPT="${OPT:-/opt}"                   # overridable only for testing
+fix_logrotate() {
+  [ -x "$OPT/sbin/logrotate" ] || return 0
+  [ -d "$OPT/var/lib" ] && return 0
+  mkdir -p "$OPT/var/lib" && say "created $OPT/var/lib (logrotate state folder for Scribe)"
 }
 
 # ---------------------------------------------------------------------------
@@ -285,6 +296,9 @@ do_verify() {
   n=$(echo "$HB_HOSTS" | tr ',' '\n' | wc -l); want=$((n*2))
   chk "ebtables: $want guest->Homebridge ACCEPT rules" sh -c "[ \"\$(ebtables -t broute -L BROUTING | grep -c -- '-i $GUEST_WL --ip-dst 192.168.50.[0-9]* .*-j ACCEPT')\" = $want ]"
   chk "Pi-hole answers on IPv4"                       nslookup example.com "$PIHOLE4"
+  if [ -x "$OPT/sbin/logrotate" ]; then
+    chk "Scribe: logrotate state folder exists"       [ -d "$OPT/var/lib" ]
+  fi
   # (Pi-hole over IPv6 is tested from a client, not from here: the router's own
   #  ip6tables INPUT policy drops the reply. See docs/12-verification.md.)
   echo

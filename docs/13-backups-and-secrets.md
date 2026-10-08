@@ -18,14 +18,40 @@ It saves `/jffs/scripts`, `/jffs/configs`, `/jffs/addons` and the per-device lis
 
 ### Archer A7
 
-**Paste on: your Mac.**
+**No A7 backup existed before 8 October.** The plan is one script, run by hand after every change to the A7.
+
+**Paste on: your Mac**, in the root of this repo.
 
 ```sh
-ssh root@192.168.50.3 'sysupgrade -b /tmp/a7-backup.tar.gz'
-scp -O root@192.168.50.3:/tmp/a7-backup.tar.gz ~/Documents/network-rebuild/
+sh network/archer-a7/a7-backup.sh
 ```
 
-This is the only copy of the A7's Wi-Fi settings.
+Arguments, all optional: the A7's address (default 192.168.50.3), the SSH user (default `root`), the folder to save into (default `~/Documents/network-rebuild/a7`). `ssh` asks for the A7 password once.
+
+| What it does | Why |
+| --- | --- |
+| Runs `sysupgrade -b -` on the A7 and saves the output on the Mac as `a7-backup-<date>-<time>.tar.gz` | OpenWrt's own backup format, the one LuCI restores. Nothing is left on the A7 |
+| Opens the archive and checks for the network and wireless configs, the IoT SSID and bridge, and the weekly reboot line | A backup that silently lacks the IoT network or the reboot is caught on the day, not on the day you need it |
+| Keeps the newest 10 files (`KEEP=20 sh ...` to change) | Old ones are a way back if a change goes wrong |
+| Sets the file to owner-read only | **It contains the Wi-Fi passwords** |
+
+When to run it:
+
+- Now, once.
+- After any change in LuCI or over SSH on the A7, before logging out.
+- Before a firmware upgrade.
+
+Where it goes: the Mac folder is the working copy. Put the newest file in the password manager or the encrypted archive as well ("Where the backups go" below). **Never in either Git repository**; `.gitignore` blocks `a7-backup*.tar.gz` as a backstop.
+
+Restore: [03](03-access-points.md), "With a backup". To prove a backup is usable without touching the A7:
+
+```sh
+tar -tzf ~/Documents/network-rebuild/a7/a7-backup-<date>-<time>.tar.gz | head -30
+```
+
+Not automated on purpose. The A7 changes a few times a year, an unattended job would need a stored key with root on the A7, and a check you watch pass is worth more than a cron job nobody reads. If that changes, the same script runs from `launchd` on the Mac server with an SSH key.
+
+This is the only copy of the A7's Wi-Fi settings, including the MAC deny lists.
 
 ### Homebridge
 

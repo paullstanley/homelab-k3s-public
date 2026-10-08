@@ -9,7 +9,9 @@
 # (On a freshly flashed A7 the address is 192.168.1.1 instead; plug a computer
 #  straight into a LAN port for the first run. The script moves it to .3.)
 #
-# It does NOT configure Wi-Fi (SSIDs, keys, 802.11k/v/r, neighbor reports).
+# It also schedules the weekly reboot (Wednesday 03:30).
+# It does NOT configure Wi-Fi (SSIDs, keys, 802.11k/v/r, neighbor reports), and it does
+# not add the IoT SSID: run a7-iot-ssid.sh for that.
 # Restore those from your sysupgrade backup - see docs/03-access-points.md.
 # Everything here is stored by UCI, so it survives reboots. No startup script.
 # =============================================================================
@@ -61,6 +63,18 @@ for s in odhcpd dnsmasq firewall; do
   [ -x "/etc/init.d/$s" ] && { /etc/init.d/$s disable; /etc/init.d/$s stop; }
 done
 
+# --- Weekly reboot: Wednesday 03:30 local time ---
+# "sleep 70 && touch /etc/banner" stops a reboot loop: the A7 has no battery clock and
+# takes its time at boot from the newest file in /etc until NTP answers, so the restored
+# time must land after the scheduled minute.
+REBOOT_AT="${REBOOT_AT:-30 3 * * 3}"
+CRON=/etc/crontabs/root
+mkdir -p /etc/crontabs; touch "$CRON"
+grep -v 'touch /etc/banner && reboot' "$CRON" > /tmp/cron.new
+echo "$REBOOT_AT sleep 70 && touch /etc/banner && reboot" >> /tmp/cron.new
+cat /tmp/cron.new > "$CRON"; rm -f /tmp/cron.new
+/etc/init.d/cron enable; /etc/init.d/cron restart
+
 # uneighbord only talks to other OpenWrt APs; with one OpenWrt AP it just logs errors
 apk del uneighbord 2>/dev/null
 
@@ -71,6 +85,7 @@ sleep 8
 echo "---- verify ----"
 ip -4 addr show br-lan | grep inet
 ip -6 addr show br-lan | grep inet6      # expect fe80::... and fd00:1234:5678:50::3/64
+echo "weekly reboot (expect one line):"; crontab -l | grep reboot
 echo "IPv6 default routes (expect none):"; ip -6 route | grep '^default'
 echo "odhcpd/dnsmasq processes (expect none):"; ps | grep -E 'odhcpd|dnsmasq' | grep -v grep
 nslookup openwrt.org "$PIHOLE4" >/dev/null 2>&1 && echo "DNS via Pi-hole: OK" || echo "DNS via Pi-hole: FAILED"

@@ -23,6 +23,24 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | Take the backups | [13](13-backups-and-secrets.md). None of them is known to exist yet |
 | Add funkyfresh, k3snode2 and the Mac VM to DNS Director | So their own DNS does not depend on Pi-hole. [02](02-router-xt8.md) |
 
+## Added 7 October
+
+| Item | Detail |
+| --- | --- |
+| **Script that moves wireless devices between the two XT8 units is not in the repo** | It was written in a session I do not have. It belongs in `network/xt8/xt8-bootstrap.sh`; paste it and it gets added, with a line in [02](02-router-xt8.md) |
+| Live `dnsmasq.postconf` is longer than the repo's copy | It had `pc_append "quiet-ra"` at line 25, which the repo's 19-line block never contained. Something else wrote the rest. `cat /jffs/scripts/dnsmasq.postconf` on the router and compare |
+| DNS-over-TLS on the router | On 7 October the WAN page listed 1.1.1.1 and 1.0.0.1 (`cloudflare-dns.com`) as DNS-over-TLS servers, and the log shows `stubby` starting. [02](02-router-xt8.md) and `xt8-bootstrap.sh` say plain 9.9.9.9. If DoT is on, `verify` will FAIL "upstream is 9.9.9.9 only". Decide which it is and make the script match |
+| Node reboot: prove it survives a boot | After a Wednesday, on the node: `uptime` under a week and `cru l` still lists `WeeklyReboot`. Set by hand on 6 October; `services-start` running by itself at boot has not been seen |
+| A7 weekly reboot | The cron line was given on 6 October; not confirmed entered. It belongs in **System → Scheduled Tasks**, not Local Startup. `crontab -l` on the A7, or the reboot check in `a7-backup.sh` |
+| A7 `Home-IoT` phone test | SSID confirmed broadcasting on 3 October. A client getting 192.168.101.x through the A7 was not reported |
+| `a7-iot-ssid.sh`, `a7-backup.sh`, `xt8-node-setup.sh`, the reboot lines in `a7-ap-setup.sh`, the logrotate lines in `xt8-bootstrap.sh` | New. Syntax-checked; the node and backup scripts were also run against stand-in commands. None has run on the real devices |
+| **Take the first A7 backup** | None has ever been taken. `sh network/archer-a7/a7-backup.sh` from the Mac; all six checks should pass, and the reboot check will FAIL until the cron line is in. [13](13-backups-and-secrets.md) |
+| XT8 `eth1` renegotiating between 100 and 1000 Mbps | 22 and 23 September, 2 October. Swap the cable unless you were replugging it |
+| USB drive read timeouts | `usb 3-1 ... error -110` on 20 September and 4 October. Back the drive up |
+| Web logins to the router from 192.168.0.1 | 19 and 25 September, 4 and 5 October. Probably you during the rebuild; confirm |
+| Roaming assistant crashes | `roamast` crashed about 5,700 times between 1 October 20:00 and 4 October 23:30, none since. Closed unless it returns |
+| Rotated log | `/opt/var/log/messages-202610072036` (26.8 MB) is left on the USB drive. Delete it or let logrotate age it out |
+
 ## Not verified
 
 | Item | Detail |
@@ -51,7 +69,7 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | Homebridge live `values.yaml` against this repo's | Seen on 6 October. The `npm install` lines are comments in both. The live file still sets `PUID`, `PGID` and `HOMEBRIDGE_CONFIG_UI` and has fewer comments; otherwise the same, DNS block included. Applying this repo's file has not been done since |
 | Traefik pinned to 192.168.50.12 | It got .12 by being second in line. The pinning annotation in [06](06-load-balancers.md) is untested here |
 | Token rotation, certificate rotation, `--cluster-reset` | Commands from the k3s documentation, not run here |
-| September router recommendations | Roaming assistant -70 dBm, AiProtection off, weekly reboot: unknown whether applied |
+| September router recommendations | Roaming assistant -70 dBm, AiProtection off, weekly reboot of the **main** router: unknown whether applied. The log to 7 October still shows the roaming assistant disconnecting weak clients about 250 times in three weeks. The node's weekly reboot is done |
 | Leak and isolation tests from a personal device | [12](12-verification.md), tests 2, 3, 5, 7, 8, 10, 12 |
 
 ## Things I could not see
@@ -64,7 +82,7 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | DNS Director's per-device list | Last read 24 September; changed since |
 | IPv6 DNS setting on dc01 and ca01 | Never recorded |
 | AX21 settings | Not re-checked |
-| AiMesh node address | 192.168.50.117 in September; not in the 4 October client list |
+| AiMesh node address | Resolved: 192.168.50.117, confirmed over SSH on 6 October |
 | Whether `pretty-pan` (192.168.50.8) still does anything | It left the cluster but is still on the network |
 | The `Local-Only-IPv6-Guide.md` the September runbook refers to | Not in this repo and not sent. The runbook listed nine places where it was already wrong; the correct values are all in [02](02-router-xt8.md), [03](03-access-points.md), [04](04-k3s-cluster.md) and [07](07-pihole.md) |
 
@@ -73,8 +91,8 @@ Things that are not finished, not verified, or that I could not confirm from wha
 | Item | State |
 | --- | --- |
 | amtm / Entware downloads hang | Unresolved; Skynet suspected |
-| JFFS errors (CRC error, 24 to 27 September) | Stopped. If they return: back up JFFS, format it at next boot, restore |
-| "own address as source" on `eth4`/`eth5` | Low priority |
+| JFFS errors (CRC error, 24 to 27 September) | Stopped; none in the log to 7 October. If they return: back up JFFS, format it at next boot, restore |
+| "own address as source" on `eth4`/`eth5`/`eth6` | Low priority. Still 20 to 60 a day on 7 October |
 | UPnP notify timeouts to two Windows machines | Cosmetic |
 | Sonarr/Radarr could not reach the torrent client on dc01 | Suspects were AiProtection and the torrent VPN's LAN exception. Outcome not recorded |
 | Homebridge backup lives only on k3sprimary | Download it. [13](13-backups-and-secrets.md) |

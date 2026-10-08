@@ -393,6 +393,17 @@ Everything that has gone wrong on this network, in one table per area. The linke
 | Random Wi-Fi drops about hourly | Roaming assistant at -55 dBm | -70 dBm |
 | Router reboots every few days | AiProtection engine crash | Turn AiProtection off |
 | amtm / Entware downloads hang | Unresolved; Skynet suspected | Disable Skynet briefly and retry |
+| `/opt/var/log/messages` is tens of MB; `logrotate.log` says "error creating stub state file /opt/var/lib/logrotate.status" | Scribe's logrotate has no state folder | On the XT8: `mkdir -p /opt/var/lib; /opt/sbin/logrotate /opt/etc/logrotate.conf`. [02](02-router-xt8.md), Add-ons |
+| `messages` is 0 bytes right after a rotation | Nothing has been logged yet | `logger test; sleep 2; ls -la /opt/var/log/messages*`. Only if the old file grew instead: `killall -HUP syslog-ng` |
+| System Log → IPv6 says "IPv6 Not enabled" | Expected; IPv6 is set up by script, not the UI | `ip -6 neigh show dev br0` on the XT8. [02](02-router-xt8.md), "Seeing IPv6 on the router" |
+| No `RTR-ADVERT` lines in the log | A `quiet-ra` line is back in `/jffs/scripts/dnsmasq.postconf` | Comment it out, `service restart_dnsmasq` |
+| `DHCPSOLICIT(br0)` repeating with no reply | One device wants DHCPv6; the router only does SLAAC | Nothing |
+| `cru l` on the node shows no reboot job | `services-start` did not run at boot, or AiMesh sync reset it | `sh network/xt8/node/xt8-node-setup.sh 192.168.50.117` from the Mac. [02](02-router-xt8.md), "The AiMesh node" |
+| "not giving name … because the name exists in …/.hostnames" | A device asked for an address other than the one YazDHCP has reserved for its name | Make the reservation match, or wait for the lease to renew. Seen for the bedroom Apple TV on 15 and 16 September only |
+| `Home-IoT` on the A7 shows grey bars and `---` | No client is connected to it | Nothing. A BSSID and a **Disable** button mean it is broadcasting |
+| Device joins the A7's `Home-IoT` but gets no address | Tagged VLAN 501 is not reaching the A7 | `brctl show` on the XT8 (`.501` members under `br1`), the A7 uplink port, any switch between. [03](03-access-points.md) |
+| A LAN port on the XT8 keeps going up and down between 100 and 1000 Mbps | Marginal cable or device on that port | Swap the cable. `eth1` did this on 22 and 23 September and 2 October |
+| `usb 3-1: device descriptor read/64, error -110` in the router log | The USB drive is timing out | Back it up; replace it if it repeats. Skynet, Scribe and the logs live on it |
 
 ## Working with these guides
 

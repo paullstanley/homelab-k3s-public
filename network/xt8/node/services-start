@@ -1,0 +1,4 @@
+#!/bin/sh
+
+/bin/sh /jffs/addons/amtm/shell_history.mod -run # Added by amtm
+cru a WeeklyReboot "30 3 * * 3 /sbin/reboot"
