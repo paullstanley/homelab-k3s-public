@@ -421,7 +421,7 @@ Run the full [Verification](verification.md) list after any firmware or k3s upgr
 | `crontab -l` on the OpenWrt AP is empty | The line was never entered, or was put in Local Startup | Step 3 |
 | k3s install or upgrade: download failed | Short version such as `v1.34` | Full tag, `v1.34.3+k3s1` |
 | A Pi does not come back after `rpi-eeprom-update -a` and reboot | Boot order or slow USB drive | [Raspberry Pi](../hardware/raspberry-pi.md) |
-| `verify` fails "upstream is 9.9.9.9 only" | The router is set to DNS over TLS | Make the script and the router agree ([DNS design](../network/dns-design.md)) |
+| `verify` fails a DNS-over-TLS or "upstream is only" check | The WAN page and the `WAN_DNS`, `WAN_DNS2`, `WAN_DOT` values at the top of the script disagree | Make them agree ([DNS design](../network/dns-design.md) Step 4) |
 | `amtm` downloads hang | Unresolved; Skynet suspected | Disable Skynet briefly and retry |
 
 Anything else: [Troubleshooting](troubleshooting.md).

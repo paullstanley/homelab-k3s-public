@@ -169,7 +169,7 @@ Counts and durations are what was observed on this hardware over about three wee
 | `[BLOCKED - INBOUND] IN=... SRC=...` | Skynet dropping an unsolicited connection from the internet | Noise. This is Skynet working. It is usually the largest share of the log |
 | `kernel:` crash dump followed by a boot sequence, with AiProtection on | The Trend Micro engine crashed the kernel and the router rebooted | **Action.** Turn AiProtection off, or at least Two-Way IPS and Infected Device Prevention |
 | Hundreds of `dnsmasq` start and exit lines in a day | Something keeps restarting dnsmasq. dnscrypt-proxy's manager did this about 550 times in one day | **Action.** [Remove dnscrypt-proxy](../hardware/asus-zenwifi-xt8.md#removing-dnscrypt-proxy) |
-| `stubby` starting | DNS-over-TLS is enabled on the WAN page | Information. See [DNS design](dns-design.md) |
+| `stubby` starting | DNS-over-TLS is enabled on the WAN page, as it is in this build | Information. See [DNS design](dns-design.md) |
 | JFFS `CRC error` lines | Trouble on the flash partition that holds your scripts | Watch. Seen for a few days, then stopped. If they return: back up JFFS, format it at next boot, restore |
 | UPnP notify timeouts naming a LAN device | A device that does not answer UPnP event notifications | Noise |
 | Web UI `login successful` from an address you do not expect | Someone logged in to the router | **Action**: confirm it was you. Logins through a VPN show the VPN side's address |

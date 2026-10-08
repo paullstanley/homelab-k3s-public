@@ -332,7 +332,7 @@ To remove the cgroup settings, edit `/boot/firmware/cmdline.txt` and delete the 
 
 ## If you also have an Asuswrt-Merlin router with DNS Director
 
-DNS Director forces every device's DNS queries to one server, typically Pi-hole. That would silently redirect the nodes' queries to `1.1.1.1` back into the cluster, which recreates the dependency this page removes. Give each node a "No Redirection" exception. See [ASUS ZenWiFi XT8](asus-zenwifi-xt8.md) and [DNS design](../network/dns-design.md).
+DNS Director forces every device's DNS queries to one server, typically Pi-hole. That would silently redirect the nodes' queries to `1.1.1.1` back into the cluster, which recreates the dependency this page removes. Give each node a per-device rule that keeps it away from Pi-hole. This build uses **Router**, which has the router's own resolver answer the node. See [ASUS ZenWiFi XT8](asus-zenwifi-xt8.md) and [DNS design](../network/dns-design.md).
 
 ## References
 

@@ -438,7 +438,7 @@ Lookup tables by area: symptom, cause, fix. The linked page has the detail.
 | Hundreds of dnsmasq restarts in the router log | The dnscrypt-proxy manager add-on is back | Remove it. [ASUS ZenWiFi XT8](../hardware/asus-zenwifi-xt8.md) |
 | Helm install of Pi-hole fails on the `-ipv6` Services | The cluster is not dual-stack | [k3s HA cluster](../kubernetes/k3s-ha-cluster.md) |
 | A node's `resolv.conf` lists Pi-hole (`fd00:1234:5678:50::11` or `192.168.50.11`) | The node learned DNS from the router (DHCP or router advertisement) | Pin the node's DNS, and add the nodes as exceptions in DNS Director. [DNS design](../network/dns-design.md) |
-| Bootstrap `verify` fails "upstream is 9.9.9.9 only" | The router's WAN is set to DNS over TLS (the log shows `stubby`) | Decide which it is; make the script and the router agree |
+| Bootstrap `verify` fails a DNS-over-TLS or "upstream is only" check | The WAN page and the `WAN_DNS`, `WAN_DNS2`, `WAN_DOT` values at the top of the script disagree | Make them agree. [DNS design](../network/dns-design.md) Step 4 |
 
 ### Web apps and Traefik
 

@@ -38,9 +38,10 @@ Four ideas explain most of the settings:
 | `PIHOLE6` / `PIHOLE4` | `${ULA_NET}::11` / `192.168.50.11` | Pi-hole's addresses |
 | `LAN_IP` | `192.168.50.1` | The LAN address the router must already have |
 | `DOMAIN` | `home.example.com` | Local domain |
-| `WAN_DNS` | `9.9.9.9` | The router's own upstream resolver |
+| `WAN_DNS`, `WAN_DNS2` | `1.1.1.1`, `1.0.0.1` | The router's own upstream resolvers |
+| `WAN_DOT` | `1` | `1` = the router is expected to use DNS-over-TLS to those servers (set in the GUI; the script only checks it). `0` = plain DNS |
 | `DNSF_CUSTOM2` | `1.1.1.1` | DNS Director "User Defined 2" |
-| `DNSF_CUSTOM3` | `192.168.50.11` | DNS Director "User Defined 3" |
+| `DNSF_CUSTOM3` | blank | DNS Director "User Defined 3", unused |
 | `GUEST_PREFIX` / `GUEST_NET` | `192.168.101.` / `192.168.101.0/24` | The guest/IoT subnet |
 | `GUEST_WL` | `wl0.1` | The guest Wi-Fi interface that carries the isolation rules |
 | `HB_HOSTS` | `192.168.50.5,192.168.50.6,192.168.50.7` | LAN hosts allowed to open connections into the IoT network (the k3s nodes that may run Homebridge) |
@@ -67,10 +68,13 @@ Set these after a factory reset. Rows marked (script) are set by the bootstrap s
 | LAN > DHCP Server | Manual assignments | Restored in Step 5. Reserve every device that another system refers to by address |
 | LAN > DNS Director | Enable (script) | On |
 | LAN > DNS Director | Global Redirection (script) | User Defined 1 |
-| LAN > DNS Director | User Defined 1 / 2 / 3 (script) | `192.168.50.11` / `1.1.1.1` / `192.168.50.11` |
+| LAN > DNS Director | User Defined 1 (script) | IPv4 `192.168.50.11`, IPv6 `fd00:1234:5678:50::11` |
+| LAN > DNS Director | User Defined 2 / 3 (script) | `1.1.1.1` / blank. Neither is used by a device |
 | LAN > DNS Director | Per-device list | Restored in Step 5 |
 | WAN > Internet Connection | Connect to DNS Server automatically (script) | No |
-| WAN > Internet Connection | DNS Server 1 (script) | `9.9.9.9`, DNSSEC on |
+| WAN > Internet Connection | DNS Server (script) | Cloudflare: `1.1.1.1` and `1.0.0.1`. DNSSEC on, validate unsigned replies on, rebind protection on |
+| WAN > Internet Connection | DNS Privacy Protocol | **DNS-over-TLS (DoT)**, profile Strict, servers `1.1.1.1` and `1.0.0.1` with TLS hostname `cloudflare-dns.com`, port and fingerprint blank. Set by hand; every field is explained in [DNS design](../network/dns-design.md) Step 4 |
+| WAN > Internet Connection | Prevent client auto DoH | Auto |
 | WAN > DDNS | Host name | Optional. For example `myhome.asuscomm.com` with a Let's Encrypt certificate |
 | WAN > Virtual Server / Port Forwarding | | Optional. Use static rules, not UPnP. Example: external TCP 32400 to a media server on port 32400 |
 | IPv6 | Connection type (script) | **Disable**. Local IPv6 comes from the scripts |
@@ -195,7 +199,9 @@ The nvram keys it sets:
 | `dnsfilter_mode` | `8` | DNS Director global = User Defined 1 |
 | `dnsfilter_custom1` / `2` / `3` | `192.168.50.11` / `1.1.1.1` / `192.168.50.11` | DNS Director User Defined 1 / 2 / 3 |
 | `wan0_dnsenable_x`, `wan_dnsenable_x` | `0` | WAN > Connect to DNS Server automatically = No |
-| `wan0_dns1_x`, `wan_dns1_x` | `9.9.9.9` | WAN > DNS Server 1 |
+| `dnsfilter_custom61` | `fd00:1234:5678:50::11` | DNS Director User Defined 1, IPv6 |
+| `wan0_dns1_x`, `wan_dns1_x` | `1.1.1.1` | WAN > DNS Server 1 |
+| `wan0_dns2_x`, `wan_dns2_x` | `1.0.0.1` | WAN > DNS Server 2 |
 
 All commands:
 
@@ -227,12 +233,13 @@ Without a backup, enter them again in the GUI. Typical DNS Director exceptions:
 
 | Rule | Give it to |
 | --- | --- |
-| User Defined 2 (`1.1.1.1`) or No Redirection | Devices that must not depend on Pi-hole. See below |
-| User Defined 3 | A spare rule. Keep it pointing at an address that really answers DNS |
+| **Router** | Devices that must not depend on Pi-hole: every cluster node, and a work laptop on each of its adapters. The router's own resolver answers them. See below |
+| No Redirection | Your own computer, temporarily, while rebuilding |
+| User Defined 2 or 3 | Nothing in this build. If you use one, it must point at an address that really answers DNS |
 
 #### If you also have the k3s cluster that runs Pi-hole
 
-Each cluster node uses `1.1.1.1` and `9.9.9.9` for its own lookups so that it never needs Pi-hole in order to start Pi-hole ([DNS design](../network/dns-design.md)). DNS Director redirects port 53 from every device to Pi-hole unless the device has its own rule, whatever the device's own settings say. So add **every** node, including a VM node, to LAN > DNS Director as **User Defined 2** or **No Redirection**, by MAC address. Also give each node a DHCP reservation or a static address.
+Each cluster node uses `1.1.1.1` and `9.9.9.9` for its own lookups so that it never needs Pi-hole in order to start Pi-hole ([DNS design](../network/dns-design.md)). DNS Director redirects port 53 from every device to Pi-hole unless the device has its own rule, whatever the device's own settings say. So add **every** node, including a VM node, to LAN > DNS Director as **Router**, by MAC address. Also give each node a DHCP reservation or a static address.
 
 > **Not verified:** that the redirect really catches a node without an exception was not confirmed on this hardware. The check: on the node, run `nslookup example.com 1.1.1.1` while watching the Pi-hole query log. If the query shows up in Pi-hole, the node is being redirected.
 
@@ -273,7 +280,8 @@ Pi-hole over IPv6 is tested from a client, not from the router: the router's own
 | `router LAN address is ...` | Fix LAN > LAN IP in the GUI |
 | Any nvram check (JFFS scripts, IPv6 type, DHCP, DNS Director) | Run `install` again, then reboot |
 | `br0 has ...::1/64`, `no IPv6 default route`, any `dnsmasq:` check | `service restart_dnsmasq`, wait 5 seconds, verify again. If it still fails, `cat /jffs/scripts/dnsmasq.postconf` and confirm the marked block is there and the file is executable |
-| `dnsmasq: upstream is 9.9.9.9 only` | `cat /tmp/resolv.dnsmasq`. It must contain exactly one line, `server=9.9.9.9`. A `127.x` entry means dnscrypt-proxy is back. The check also fails if you turned on DNS-over-TLS on the WAN page or use a different or second upstream; see [DNS design](../network/dns-design.md) |
+| Any `DNS-over-TLS` check | The script's `WAN_DOT=1` says the router should use DNS-over-TLS. Set WAN > DNS Privacy Protocol as in [DNS design](../network/dns-design.md) Step 4, or set `WAN_DOT=0` if you chose plain DNS. Not verified: these checks have not run on a router |
+| `dnsmasq: upstream is only ...` | Only with `WAN_DOT=0`. `cat /tmp/resolv.dnsmasq` must list exactly the `WAN_DNS` servers. A `127.x` entry means DNS-over-TLS is on or dnscrypt-proxy is back |
 | `no dnscrypt-proxy running` | [Removing dnscrypt-proxy](#removing-dnscrypt-proxy) |
 | Any `ip6tables` or `iptables` check | `service restart_firewall`, wait 10 seconds, verify again |
 | `guest bridge for 192.168.101.x exists` | The guest network does not exist yet or uses another subnet (Step 2) |
@@ -418,7 +426,7 @@ grep -rn -i dnscrypt /jffs/scripts /jffs/configs
 cat /tmp/resolv.dnsmasq
 ```
 
-The only matches allowed are lines inside `/jffs/scripts/firewall` (that file is Skynet's; three lines were seen). `resolv.dnsmasq` must contain only `server=9.9.9.9`.
+The only matches allowed are lines inside `/jffs/scripts/firewall` (that file is Skynet's; three lines were seen). With plain DNS, `resolv.dnsmasq` must list only your upstream servers. With DNS-over-TLS it points at the router's own forwarder instead, so rely on the `grep` and on `ps w | grep dnscrypt` showing nothing.
 
 ## References
 

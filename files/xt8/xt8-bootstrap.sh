@@ -32,11 +32,14 @@ PIHOLE6="${ULA_NET}::11"             # Pi-hole VIP (IPv6)
 PIHOLE4="192.168.50.11"              # Pi-hole VIP (IPv4)
 LAN_IP="192.168.50.1"                # expected router LAN address
 DOMAIN="home.example.com"          # local domain
-WAN_DNS="9.9.9.9"                    # the router's own upstream resolver
+WAN_DNS="1.1.1.1"                    # the router's own upstream resolver, first server
+WAN_DNS2="1.0.0.1"                   # second server ("" for none)
+WAN_DOT="1"                          # 1 = the router is expected to use DNS-over-TLS to those servers.
+                                     # DoT itself is switched on in the GUI (WAN > DNS Privacy Protocol);
+                                     # this script only checks it. 0 = plain DNS on port 53.
 DNSF_CUSTOM2="1.1.1.1"               # DNS Director "User Defined 2"
-DNSF_CUSTOM3="192.168.50.11"         # DNS Director "User Defined 3". Must be an address that really
-                                     # answers DNS. A node address only works while the k3s built-in
-                                     # load balancer publishes Pi-hole there; with ServiceLB disabled it does not.
+DNSF_CUSTOM3=""                      # DNS Director "User Defined 3": unused. If you set it, it must be an
+                                     # address that really answers DNS, or every device on that rule has none.
 GUEST_PREFIX="192.168.101."          # guest/IoT subnet, first three octets + dot
 GUEST_NET="192.168.101.0/24"
 USB_MOUNT="/tmp/mnt/gateway"         # where the router mounts its USB drive (ls /tmp/mnt); used by "backup"
@@ -240,12 +243,15 @@ do_nvram() {
   nv dnsfilter_enable_x 1              "LAN > DNS Director > Enable"
   nv dnsfilter_mode     8              "LAN > DNS Director > Global = User Defined 1"
   nv dnsfilter_custom1  "$PIHOLE4"     "DNS Director > User Defined 1"
+  nv dnsfilter_custom61 "$PIHOLE6"     "DNS Director > User Defined 1, IPv6"
   nv dnsfilter_custom2  "$DNSF_CUSTOM2" "DNS Director > User Defined 2"
   nv dnsfilter_custom3  "$DNSF_CUSTOM3" "DNS Director > User Defined 3"
   nv wan0_dnsenable_x   0              "WAN > Connect to DNS Server automatically = No"
   nv wan0_dns1_x        "$WAN_DNS"     "WAN > DNS Server 1"
+  nv wan0_dns2_x        "$WAN_DNS2"    "WAN > DNS Server 2"
   nv wan_dnsenable_x    0              "WAN (same, generic key)"
   nv wan_dns1_x         "$WAN_DNS"     "WAN (same, generic key)"
+  nv wan_dns2_x         "$WAN_DNS2"    "WAN (same, generic key)"
   if [ "$NV_CHANGED" = 1 ]; then
     nvram commit
     say "nvram committed. REBOOT the router once so every changed setting takes effect."
@@ -286,7 +292,15 @@ do_verify() {
   chk "dnsmasq: enable-ra"                            grep -q '^enable-ra' /etc/dnsmasq.conf
   chk "dnsmasq: ra-param=br0,0,0 (no default route)"  grep -q '^ra-param=br0,0,0' /etc/dnsmasq.conf
   chk "dnsmasq: IPv6 DNS = Pi-hole only"              grep -q "option6:dns-server,\[${PIHOLE6}\]" /etc/dnsmasq.conf
-  chk "dnsmasq: upstream is $WAN_DNS only"            sh -c "[ \"\$(grep -c '^server=' /tmp/resolv.dnsmasq)\" = 1 ] && grep -q '^server=${WAN_DNS}\$' /tmp/resolv.dnsmasq"
+  if [ "$WAN_DOT" = 1 ]; then
+    # DNS-over-TLS: dnsmasq forwards to stubby on the router, and stubby talks to the servers.
+    chk "DNS-over-TLS is switched on (WAN page)"      nveq dnspriv_enable 1
+    chk "DNS-over-TLS: stubby is running"             pidof stubby
+    chk "DNS-over-TLS: $WAN_DNS is in the server list" sh -c "nvram get dnspriv_rulelist | grep -q -- '$WAN_DNS'"
+    [ -z "$WAN_DNS2" ] || chk "DNS-over-TLS: $WAN_DNS2 is in the server list" sh -c "nvram get dnspriv_rulelist | grep -q -- '$WAN_DNS2'"
+  else
+    chk "dnsmasq: upstream is only $WAN_DNS $WAN_DNS2" sh -c "grep -q '^server=' /tmp/resolv.dnsmasq && ! grep '^server=' /tmp/resolv.dnsmasq | grep -v -x -e 'server=${WAN_DNS}' -e 'server=${WAN_DNS2:-none}' | grep -q ."
+  fi
   chk "no dnscrypt-proxy running"                     sh -c "! ps w | grep -q '[d]nscrypt-proxy'"
   chk "ip6tables: LAN IPv6 never forwarded out"       sh -c "ip6tables -S FORWARD | grep -q -- '-i br0 ! -o br0 -j DROP'"
   chk "ip6tables: router may send on br0"             sh -c "ip6tables -S OUTPUT | grep -q -- '-o br0 -j ACCEPT'"

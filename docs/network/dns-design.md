@@ -16,18 +16,20 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 ```
 client ──DHCP says "DNS = 192.168.50.11"──▶ Pi-hole ──DNS-over-HTTPS (port 443)──▶ 1.1.1.1 / 1.0.0.1
 client with hard-coded 8.8.8.8 ──port 53──▶ router's DNS Director ──redirect──▶ Pi-hole
-cluster node ──own setting 1.1.1.1 / 9.9.9.9, DNS Director exception──▶ straight out
-router itself ──▶ 9.9.9.9 (its own upstream)
+cluster node ──asks 1.1.1.1 / 9.9.9.9 on port 53──▶ DNS Director rule "Router" ──▶ the router's own resolver
+router's own resolver ──DNS-over-TLS (port 853)──▶ 1.1.1.1 / 1.0.0.1
 ```
+
+Two encrypted paths leave the house, both to Cloudflare: Pi-hole's (DNS-over-HTTPS) for every ordinary device, and the router's (DNS-over-TLS) for the router itself and for the few devices on the "Router" rule. Nothing leaves as plain DNS on port 53.
 
 | Piece | Setting | Why |
 | --- | --- | --- |
 | DHCP on the router | DNS Server 1 = `192.168.50.11`, DNS Server 2 blank, "Advertise router's IP" = No | Pi-hole is the **only** resolver clients are told about. A second server would be used at random and bypass the blocking |
 | IPv6 router advertisements | DNS = `fd00:1234:5678:50::11` only | The same Pi-hole over IPv6. See [Local-only IPv6](local-only-ipv6.md) |
 | DNS Director, global | User Defined 1 = `192.168.50.11` | DNS Director is the router feature that rewrites port 53 traffic. Devices with a hard-coded resolver are redirected to Pi-hole anyway |
-| DNS Director, per device | User Defined 2 (`1.1.1.1`) or No Redirection | Exceptions for devices that must not depend on Pi-hole |
-| DNS Director, User Defined 3 | `192.168.50.11` | A spare rule. It must point at something that answers DNS |
-| Router's own upstream | `9.9.9.9`, DNSSEC on, "Connect to DNS Server automatically" = No | What the router itself uses, and what serves clients during the emergency bypass below |
+| DNS Director, per device | **Router** | Exceptions for devices that must not depend on Pi-hole: every cluster node, and a work laptop. Their port 53 traffic is answered by the router's own resolver instead of Pi-hole, whatever server they asked for |
+| DNS Director, User Defined 2 and 3 | `1.1.1.1` and blank | Defined but not used by any device. A user-defined rule that points at a dead address leaves every device on it with no DNS |
+| Router's own upstream | DNS-over-TLS, strict, to Cloudflare `1.1.1.1` and `1.0.0.1` (`cloudflare-dns.com`); DNSSEC on | What the router itself uses, and what answers the devices on the "Router" rule. See Step 4 |
 | Router firewall, IPv6 | REJECT port 53 on the LAN bridge | The router must not become an IPv6 way around Pi-hole |
 | Pi-hole upstream | cloudflared sidecar, DNS-over-HTTPS to `1.1.1.1` and `1.0.0.1` | Queries leave on port 443, encrypted, so the ISP cannot read them. Because it is not port 53, **Pi-hole needs no DNS Director exception** |
 | Pi-hole pod's own DNS | `127.0.0.1`, then `1.1.1.1` | The pod resolves through itself, with an outside fallback while it starts |
@@ -47,7 +49,7 @@ This is not theoretical. It happens when:
 So each node is given outside resolvers, and two things that would quietly put Pi-hole back are blocked:
 
 1. **The router's IPv6 advertisement.** It announces Pi-hole's IPv6 address as DNS. A node set only on the IPv4 side ends up with `1.1.1.1` and `fd00:1234:5678:50::11` in `/etc/resolv.conf`. `ipv6.ignore-auto-dns yes` stops that.
-2. **DNS Director.** It redirects the node's port 53 traffic to Pi-hole whatever the node's own settings say. Each node needs a per-device rule.
+2. **DNS Director.** It redirects the node's port 53 traffic to Pi-hole whatever the node's own settings say. Each node needs a per-device rule that sends it somewhere else. Here that rule is **Router**: the node's lookups are answered by the router's own resolver, which does not depend on the cluster.
 
 As a further cushion, the Pi-hole chart is set to `pullPolicy: IfNotPresent`, so a node that already has the image can start Pi-hole without reaching the registry at all.
 
@@ -55,7 +57,7 @@ As a further cushion, the Pi-hole chart is set to `pullPolicy: IfNotPresent`, so
 
 - Pi-hole must answer on `192.168.50.11` before you point DHCP at it. Until then the network has no DNS; see [the no-DNS window](#the-no-dns-window-during-a-rebuild).
 - List the MAC addresses of the devices that need a DNS Director exception: every cluster node (including a VM node), and anything else that must keep working when Pi-hole is down.
-- Decide how the router itself resolves: plain DNS to one server, or DNS-over-TLS. See Step 4.
+- Decide how the router itself resolves: DNS-over-TLS (what this build uses) or plain DNS. See Step 4.
 
 ## Steps
 
@@ -70,7 +72,9 @@ The bootstrap script in [ASUS ZenWiFi XT8 router](../hardware/asus-zenwifi-xt8.m
 | LAN > DHCP Server | Advertise router's IP in addition to user-specified DNS | No |
 | LAN > DNS Director | Enable | On |
 | LAN > DNS Director | Global Redirection | User Defined 1 |
-| LAN > DNS Director | User Defined 1 / 2 / 3 | `192.168.50.11` / `1.1.1.1` / `192.168.50.11` |
+| LAN > DNS Director | User Defined 1 | IPv4 `192.168.50.11`, IPv6 `fd00:1234:5678:50::11` |
+| LAN > DNS Director | User Defined 2 | IPv4 `1.1.1.1` (not used by any device; kept as a ready-made alternative) |
+| LAN > DNS Director | User Defined 3 | blank |
 
 > **Pitfall:** do not add an IPv6 DNS server to the DHCP page as a "secondary". Clients already learn Pi-hole's IPv6 address from the router's advertisements, and it is the same Pi-hole.
 
@@ -80,10 +84,23 @@ In LAN > DNS Director, add one client rule per device, chosen by MAC address:
 
 | Device | Rule |
 | --- | --- |
-| Each cluster node (`server-1` to `server-4`) | User Defined 2, or No Redirection |
+| Each cluster node (`server-1` to `server-4`), and any spare machine that may rejoin | **Router** |
+| A work laptop whose VPN client must not be filtered, on each of its network adapters (Wi-Fi, dock, dongle) | **Router** |
 | Your own computer while rebuilding | No Redirection (temporary) |
 
-"No Redirection" lets the device use whatever resolver it is configured with. "User Defined 2" forces it to `1.1.1.1`. Either breaks the dependency on Pi-hole.
+The list holds 64 devices. The three kinds of rule that break the dependency on Pi-hole:
+
+| Rule | What happens to the device's port 53 traffic | Use it when |
+| --- | --- | --- |
+| **Router** | Redirected to the router's own resolver (dnsmasq), which forwards through the router's upstream from Step 4. The server the device asked for is ignored | You want the device independent of Pi-hole but still encrypted on the way out, and still able to resolve local device names the router knows |
+| **No Redirection** | Left alone. The device reaches whatever resolver it is configured with, in plain DNS | Temporary work, or a device that must reach a specific resolver |
+| **User Defined 2** | Redirected to `1.1.1.1` in plain DNS | You want one fixed public resolver without involving the router's resolver |
+
+This build uses **Router** for all of them.
+
+> **Why "Router" does not mean Pi-hole here:** the page's help text says "Router" forces clients to "the DNS provided by the router's DHCP server (or the router itself if it's not defined)", and DHCP hands out Pi-hole. In the firmware's code the rule is a plain `REDIRECT` to the router's own address, with no reference to the DHCP setting. So on this firmware a "Router" device is answered by the router, not by Pi-hole. Confirm it on yours with check 10 below.
+
+A node still shows `1.1.1.1` and `9.9.9.9` in its own `/etc/resolv.conf` (Step 3). Those are the addresses it asks; the router answers in their place. Keep them anyway: if DNS Director is ever switched off, the node goes straight to them and keeps working.
 
 ### Step 3. Give each cluster node its own resolvers
 
@@ -109,29 +126,42 @@ Expected: exactly `nameserver 1.1.1.1` and `nameserver 9.9.9.9`. No `192.168.50.
 
 ### Step 4. Choose the router's own upstream
 
-This is what the router itself uses to resolve names, on WAN > Internet Connection.
+This is what the router itself uses to resolve names, on WAN > Internet Connection. It also answers every device on the "Router" rule from Step 2, so it matters more than it first looks: it is the cluster nodes' DNS.
 
-**Option A: plain DNS (what the bootstrap script expects).**
+**Option A: DNS-over-TLS (DoT). This is what the build uses.** The router runs a small encrypting forwarder (`stubby`; you will see it start in the log) and sends its queries over TLS on port 853.
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| WAN DNS Setting > DNS Server | Assign > Cloudflare (`1.1.1.1`, `1.0.0.1`) | The plain servers the router falls back on before DoT is up. Use the same provider as the DoT list |
+| Forward local domain queries to upstream DNS | No | Names under your local domain never leave the house |
+| Enable DNS Rebind protection | Yes | Drops public answers that point at private addresses |
+| Enable DNSSEC support | Yes | The router checks signatures on answers |
+| Validate unsigned DNSSEC replies | Yes | Also checks that an unsigned answer is really meant to be unsigned |
+| Prevent client auto DoH | Auto | Tells browsers not to switch themselves to DNS-over-HTTPS and bypass your DNS |
+| DNS Privacy Protocol | DNS-over-TLS (DoT) | |
+| DNS-over-TLS Profile | Strict | Never falls back to unencrypted. Opportunistic would |
+| DNS-over-TLS Server List | `1.1.1.1` and `1.0.0.1`, TLS Hostname `cloudflare-dns.com` on both | From the Preset servers menu, or typed in |
+| TLS Port | blank | The default, 853, is used |
+| SPKI Fingerprint | blank | The TLS hostname already verifies the server. A pinned fingerprint breaks DNS when the provider rotates its key |
+
+With DoT selected the page shows a yellow warning: the DHCP server hands out a DNS server other than the router, and DNS Director is on, so clients "bypass DNS Privacy servers". **That is expected in this design.** Ordinary clients go to Pi-hole, which encrypts its own upstream with DNS-over-HTTPS. Only the router and the "Router"-rule devices use the DoT path.
+
+> **Pitfall:** Strict mode means no DNS for the router, and for every device on the "Router" rule, while port 853 to the provider is blocked or the router's clock is badly wrong (TLS needs the right time). After a power cut the router sets its clock from the network first; if cluster nodes fail lookups for the first minute after the router boots, this is why. They recover by themselves.
+
+**Option B: plain DNS.**
 
 | Setting | Value |
 | --- | --- |
 | Connect to DNS Server automatically | No |
-| DNS Server 1 | `9.9.9.9` |
+| DNS Server 1, DNS Server 2 | Two servers of one provider, for example `1.1.1.1` and `1.0.0.1` |
 | DNSSEC | On |
 | DNS Privacy Protocol | None |
 
-**Option B: DNS-over-TLS (DoT).** The router runs a small encrypting forwarder (`stubby`; you will see it start in the log) and sends its queries over TLS on port 853.
+The router's own lookups, and those of the "Router"-rule devices, then leave unencrypted on port 53.
 
-| Setting | Value |
-| --- | --- |
-| DNS Privacy Protocol | DNS-over-TLS (DoT) |
-| Server list | Pick the Cloudflare presets: `1.1.1.1` and `1.0.0.1`, TLS hostname `cloudflare-dns.com` |
-| TLS Port | Leave blank (the default, 853, is used) |
-| SPKI Fingerprint | Leave blank for Cloudflare |
+**Tell the bootstrap script which one you chose.** At the top of [`xt8-bootstrap.sh`](../../files/xt8/xt8-bootstrap.sh), `WAN_DNS` and `WAN_DNS2` are the two servers and `WAN_DOT` is `1` for Option A or `0` for Option B. The script sets the plain server fields either way. It does **not** switch DoT on; do that in the GUI. `verify` then checks whichever you declared: with `WAN_DOT=1`, that DoT is on, `stubby` is running and both servers are in the DoT list; with `WAN_DOT=0`, that dnsmasq's upstream is exactly those servers.
 
-> **Pitfall:** the bootstrap script's `verify` expects a single plain upstream. With DoT on it reports `FAIL  dnsmasq: upstream is 9.9.9.9 only`. That FAIL then means "DoT is on", not "something is broken". If you choose DoT, expect that one FAIL or adapt the check in the script. The script's `install` also sets the plain-DNS nvram values (`wan_dns1_x` and friends) every time it runs.
-
-Which option matters less than it looks: client queries go to Pi-hole, and Pi-hole encrypts its own upstream. The router's own upstream only carries the router's own lookups, and client lookups during the emergency bypass.
+> **Not verified:** the DoT checks read the nvram keys `dnspriv_enable` and `dnspriv_rulelist`. They were written from the firmware's settings names and have not been run on a router. If `verify` reports a DoT FAIL while the WAN page plainly shows DoT working, check those two keys with `nvram get`.
 
 ### Step 5. Refuse DNS on the router over IPv6
 
@@ -152,7 +182,7 @@ Run the client tests from a personal device on the main Wi-Fi, not from a machin
 
 | # | Test | Run on | Command | Expected |
 | --- | --- | --- | --- | --- |
-| 1 | Router settings | the router | `sh /jffs/xt8-bootstrap.sh verify` | `0 failed` (or only the upstream FAIL if you chose DoT) |
+| 1 | Router settings | the router | `sh /jffs/xt8-bootstrap.sh verify` | `0 failed` |
 | 2 | Pi-hole on IPv4 | your computer | `nslookup example.com 192.168.50.11` | An answer |
 | 3 | Pi-hole on IPv6 | your computer | `nslookup example.com fd00:1234:5678:50::11` | An answer |
 | 4 | Blocking | your computer | `nslookup doubleclick.net` | `0.0.0.0` |
@@ -160,8 +190,8 @@ Run the client tests from a personal device on the main Wi-Fi, not from a machin
 | 6 | Router refuses IPv6 DNS | your computer | `dig @fd00:1234:5678:50::1 example.com` | Refused or timed out |
 | 7 | Upstream is DNS-over-HTTPS | server-1 | `sudo kubectl logs -n pihole deploy/pihole -c cloudflared --tail=20` | Connections to `https://1.1.1.1/dns-query`, no errors |
 | 8 | Public leak test | your computer | Open `https://www.dnsleaktest.com` and run the extended test | Only Cloudflare resolvers listed |
-| 9 | Node is independent | each node | `grep nameserver /etc/resolv.conf` | `1.1.1.1` and `9.9.9.9` only |
-| 10 | Node is not redirected | a node | `nslookup example.com 1.1.1.1` while watching the Pi-hole query log | The query does **not** appear in Pi-hole |
+| 9 | Node is independent | each node | `grep nameserver /etc/resolv.conf` | `1.1.1.1` and `9.9.9.9` only. With the "Router" rule the router answers in their place; see Step 2 |
+| 10 | Node is not sent to Pi-hole | a node | `nslookup example.com 1.1.1.1` while watching the Pi-hole query log | The query does **not** appear in Pi-hole |
 
 > **Not verified:** tests 3, 5, 6 and 8 had not been run from a personal device by the author when this was written. Test 10 was also not run. The commands and expected results are the design's intent.
 
@@ -201,7 +231,9 @@ To get the network working while Pi-hole is being fixed, in the router's web UI:
 | A node's `resolv.conf` lists `fd00:1234:5678:50::11` next to `1.1.1.1` | It is taking Pi-hole from the router's IPv6 advertisement | `ipv6.ignore-auto-dns yes` (Step 3) |
 | A node is set correctly but its queries still show in Pi-hole | DNS Director is redirecting it | Step 2 |
 | A device has no DNS at all | Its DNS Director rule is a User Defined entry that points at a dead address. Seen when User Defined 3 was a cluster node's own address, which stopped answering DNS when the load balancer changed | Point every User Defined entry at a live resolver |
-| `verify` fails "upstream is 9.9.9.9 only" | DoT is on, a second WAN DNS server is set, or dnscrypt-proxy is installed | Step 4; or [remove dnscrypt-proxy](../hardware/asus-zenwifi-xt8.md#removing-dnscrypt-proxy) |
+| `verify` fails a "DNS-over-TLS" check | The script says `WAN_DOT=1` but the WAN page is not set to DoT, or lists other servers | Step 4: make the WAN page and the three `WAN_` values at the top of the script agree |
+| `verify` fails "upstream is only ..." | The script says `WAN_DOT=0` but DoT is on, other servers are set, or dnscrypt-proxy is installed | Step 4; or [remove dnscrypt-proxy](../hardware/asus-zenwifi-xt8.md#removing-dnscrypt-proxy) |
+| Cluster nodes cannot resolve for a minute after the router restarts | Strict DoT waits for the router's clock and its TLS connection | Nothing; it clears. If it does not, check the WAN page's DoT server list |
 | Ping to `192.168.50.11` fails | Normal for a MetalLB address | Test with `nslookup` |
 | A VPN'd laptop cannot resolve local names | The VPN sends its DNS to the VPN's own resolver, which never asks Pi-hole | [Client devices](../apps/client-devices.md) |
 | The whole cluster is down, so DNS is down | Three Pi-hole pods cover one node failing, not the cluster | Emergency bypass. An optional improvement, not done here, is a second Pi-hole outside the cluster |

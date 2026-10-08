@@ -46,7 +46,7 @@ The test numbers are kept stable across this page, so the gaps (2, 3, 5, 8, 12) 
 
 > **Pitfall:** do not test `192.168.50.11` or `192.168.50.12` with `ping`. MetalLB addresses do not have to answer ping. Use `nslookup` or `curl`.
 
-> **Pitfall:** if the router uses DNS over TLS (the WAN page lists DoT servers and the log shows `stubby` starting), the bootstrap script's `verify` fails its "upstream is 9.9.9.9 only" check. Decide which upstream the router should use and make the script and the router agree ([DNS design](../network/dns-design.md)).
+> **Note:** the bootstrap script's `verify` checks the router's upstream against three values at the top of the script (`WAN_DNS`, `WAN_DNS2`, `WAN_DOT`). As shipped it expects DNS over TLS to Cloudflare, which is what this build uses. If you chose otherwise, change those values or the check fails ([DNS design](../network/dns-design.md) Step 4).
 
 ### Step 2. Local IPv6
 
