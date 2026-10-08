@@ -52,7 +52,7 @@ Where this page gives steps of its own (flashing, Entware, first boot, Helm), th
 | A Cloudflare account and a domain whose DNS is on Cloudflare | Only for Seerr through a tunnel. The Zero Trust free plan is enough |
 | A Mac that can stay on, with a large external disk formatted APFS or Mac OS Extended (not exFAT) | Optional media server, Phase 12. The build used an Intel Mac |
 | A Windows 10 or 11 PC, and a VPN subscription whose Windows app allows torrent traffic | Optional downloader for the media server, Phase 12 |
-| A clone of this repository | `git clone https://github.com/<YOUR_ACCOUNT>/homelab-k3s-public.git`. Commands that name `files/...` run from its root |
+| A clone of this repository | `git clone https://github.com/<YOUR_ACCOUNT>/self-hosted-homelab-guide.git`. Commands that name `files/...` run from its root |
 
 ## Steps
 

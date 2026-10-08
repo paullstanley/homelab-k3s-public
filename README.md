@@ -1,4 +1,4 @@
-# Home network and k3s homelab: a how-to wiki
+# Self-hosted homelab guide: home network, k3s and a media server
 
 A set of step-by-step guides for building and looking after a home network with an isolated IoT network, local-only IPv6, and a small highly available k3s (Kubernetes) cluster that runs Pi-hole, Homebridge and Seerr, plus an optional media server (Plex, Sonarr, Radarr and a VPN'd downloader) beside it. Every guide comes from a real build, and records what went wrong as well as what worked.
 
@@ -109,8 +109,8 @@ The same guides are also published on this repository's **Wiki** tab, with a sid
 Run commands that mention a path such as `files/pihole/values.yaml` from the root of a clone of this repository:
 
 ```sh
-git clone https://github.com/<YOUR_ACCOUNT>/homelab-k3s-public.git
-cd homelab-k3s-public
+git clone https://github.com/<YOUR_ACCOUNT>/self-hosted-homelab-guide.git
+cd self-hosted-homelab-guide
 ```
 
 ## Before you copy anything
