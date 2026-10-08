@@ -1,0 +1,100 @@
+# FlareSolverr on k3s: solves Cloudflare "checking your browser" pages for Jackett (or Prowlarr).
+#
+#   sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml
+#   curl -s http://192.168.50.13:8191/      # expect {"msg": "FlareSolverr is ready!", ...}
+#
+# Then Jackett (on the media server Mac, media-1): Dashboard > FlareSolverr API URL = http://192.168.50.13:8191
+# Full runbook: docs/media/flaresolverr.md
+#
+# Why the cluster and not the torrent PC: Cloudflare's clearance cookie is tied to the public IP that solved
+# the challenge. Jackett on the Mac and every k3s node leave the house through the same WAN address;
+# The torrent PC's traffic leaves through the VPN, so cookies solved there would not work for Jackett.
+#
+# Security: no authentication. Never forward 8191 on the router or publish it through the tunnel.
+# Image: multi-arch (amd64, arm64, arm/v7), so it can land on any node, Pi or Lima VM.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flaresolverr
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr
+  namespace: flaresolverr
+  labels:
+    app: flaresolverr
+spec:
+  replicas: 1                # one browser is plenty; it holds no state worth sharing
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: flaresolverr
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+    spec:
+      containers:
+        - name: flaresolverr
+          # Pin a release tag (see github.com/FlareSolverr/FlareSolverr/releases) once it works.
+          image: ghcr.io/flaresolverr/flaresolverr:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8191
+          env:
+            - name: LOG_LEVEL
+              value: info
+            - name: TZ
+              value: Etc/UTC          # your time zone, for example America/New_York
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi       # Chrome; a solve that needs more is killed and retried by Jackett
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm   # Chrome uses shared memory; the container default is small
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr
+  namespace: flaresolverr
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.50.13   # spare address in the MetalLB pool (.11-.15)
+spec:
+  type: LoadBalancer
+  selector:
+    app: flaresolverr
+  ports:
+    - name: http
+      port: 8191
+      targetPort: http
+  # Only the main LAN may connect (kube-proxy enforces this). Tighten to 192.168.50.2/32
+  # (the Mac running Jackett) once it works.
+  loadBalancerSourceRanges:
+    - 192.168.50.0/24

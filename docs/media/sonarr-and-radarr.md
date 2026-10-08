@@ -290,7 +290,7 @@ In Seerr: Settings > **Services** > Add Radarr Server / Add Sonarr Server ([Seer
 
 **Observed:** both apps had tags of the form `<id>-<username>`, one per Seerr user who had made a request. Seerr adds them so you can see who asked for what. They do no harm; you can use them to filter.
 
-The Seerr page: [Seerr behind a Cloudflare tunnel](seerr-cloudflare-tunnel.md). Sonarr and Radarr themselves stay LAN-only; Seerr reaches them from inside the house.
+The Seerr page: [Seerr behind a Cloudflare tunnel](../apps/seerr-cloudflare-tunnel.md). Sonarr and Radarr themselves stay LAN-only; Seerr reaches them from inside the house.
 
 ## Naming
 

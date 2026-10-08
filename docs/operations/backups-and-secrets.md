@@ -216,15 +216,15 @@ This keeps the real VM definition. Read the file before committing it. Nothing e
 
 ### Step 9. Media server apps
 
-Only if you run the [media stack](../apps/media-stack-overview.md). The media files themselves are not covered here: they are large, and can be downloaded again. What is worth keeping is each app's settings and database. Every one of these backups **contains secrets** (API keys, the Plex token, the qBittorrent Web UI login, indexer logins).
+Only if you run the [media stack](../media/media-stack-overview.md). The media files themselves are not covered here: they are large, and can be downloaded again. What is worth keeping is each app's settings and database. Every one of these backups **contains secrets** (API keys, the Plex token, the qBittorrent Web UI login, indexer logins).
 
 | App | What to keep | Where | How |
 | --- | --- | --- | --- |
-| Sonarr, Radarr | Their own backup zips (made every 7 days, kept 28 days by default) | `~/.config/Sonarr/Backups`, `~/Library/Application Support/Radarr/Backups` | System > **Backup** > **Backup Now** before a change, then copy the folders off the Mac ([Sonarr and Radarr](../apps/sonarr-and-radarr.md#backups)) |
-| Plex Media Server | The data folder (without `Cache`) and the preferences plist, which holds the server's identity and token | `~/Library/Application Support/Plex Media Server/`, `~/Library/Preferences/com.plexapp.plexmediaserver.plist` | Quit Plex, then `tar` the folder and copy the plist ([Plex Media Server](../apps/plex-media-server.md#backup-and-move)). The folder can be tens of gigabytes |
-| Jackett | The config folder: API key, admin password, indexer logins | `~/.config/Jackett` (some installs: `~/Library/Application Support/Jackett`) | Copy it with the rest of the Mac ([Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#updating-jackett)) |
+| Sonarr, Radarr | Their own backup zips (made every 7 days, kept 28 days by default) | `~/.config/Sonarr/Backups`, `~/Library/Application Support/Radarr/Backups` | System > **Backup** > **Backup Now** before a change, then copy the folders off the Mac ([Sonarr and Radarr](../media/sonarr-and-radarr.md#backups)) |
+| Plex Media Server | The data folder (without `Cache`) and the preferences plist, which holds the server's identity and token | `~/Library/Application Support/Plex Media Server/`, `~/Library/Preferences/com.plexapp.plexmediaserver.plist` | Quit Plex, then `tar` the folder and copy the plist ([Plex Media Server](../media/plex-media-server.md#backup-and-move)). The folder can be tens of gigabytes |
+| Jackett | The config folder: API key, admin password, indexer logins | `~/.config/Jackett` (some installs: `~/Library/Application Support/Jackett`) | Copy it with the rest of the Mac ([Jackett and Prowlarr](../media/jackett-and-prowlarr.md#updating-jackett)) |
 | Prowlarr (if used instead) | Its built-in backup zips, like Sonarr and Radarr | Its appdata folder, `Backups` | System > Backup. **Not verified by the author**: Prowlarr was not installed in the build |
-| qBittorrent (Windows) | Settings, and the state of every torrent | `%APPDATA%\qBittorrent\qBittorrent.ini` and `%LOCALAPPDATA%\qBittorrent\BT_backup` | Quit qBittorrent (**File > Exit**), then copy both ([qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#backups)) |
+| qBittorrent (Windows) | Settings, and the state of every torrent | `%APPDATA%\qBittorrent\qBittorrent.ini` and `%LOCALAPPDATA%\qBittorrent\BT_backup` | Quit qBittorrent (**File > Exit**), then copy both ([qBittorrent on Windows behind a VPN](../media/qbittorrent-windows-vpn.md#backups)) |
 | The VPN app | Nothing local worth saving | | Keep the account login in the password manager |
 
 **Run on: the Mac**, after quitting Plex. This collects the Mac side into one archive in your home folder; copy it off the Mac.

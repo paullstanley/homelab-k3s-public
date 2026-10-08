@@ -558,8 +558,8 @@ The name and namespace must match k3s's HelmChart exactly. This is the permanent
 | --- | --- |
 | **Where** | [Plex Media Server downloads](https://www.plex.tv/media-server-downloads/) (choose macOS). Release announcements in the [Plex forum releases thread](https://forums.plex.tv/t/plex-media-server/30447/717) |
 | **Download** | The macOS build. Newest public release seen in October 2026: **1.43.4.10903** (announced 10 Sep 2026), which is also what the build runs. When checked, the downloads page failed to list its files ("not available at this time"); reload later |
-| **First install** | Open the download, drag the app to Applications, open it, claim it in the browser ([Plex Media Server, Step 4](../apps/plex-media-server.md#step-4-download-and-install-plex-media-server)) |
-| **Update** | Install the new macOS build over the old app, or accept the update the server offers in Plex Web. Quit Plex and back up its data folder first ([Plex Media Server, Upgrades](../apps/plex-media-server.md#upgrades)) |
+| **First install** | Open the download, drag the app to Applications, open it, claim it in the browser ([Plex Media Server, Step 4](../media/plex-media-server.md#step-4-download-and-install-plex-media-server)) |
+| **Update** | Install the new macOS build over the old app, or accept the update the server offers in Plex Web. Quit Plex and back up its data folder first ([Plex Media Server, Upgrades](../media/plex-media-server.md#upgrades)) |
 | **Check version** | Plex Web: **Settings > Server > General**; or `curl -s http://127.0.0.1:32400/identity` on the Mac (the `version=` attribute) |
 
 - **Security: run 1.43.3 or later.** Plex published an "Important Security Update for Plex Media Server v1.43.2 and earlier", and 1.43.3 (around 1 Sep 2026) fixes a number of security issues ([report](https://borncity.com/blog/2026/09/02/wichtiges-update-auf-plex-media-server-1-43-3-und-plex-desktop-1-115-0/)).
@@ -573,7 +573,7 @@ The name and namespace must match k3s's HelmChart exactly. This is the permanent
 | --- | --- |
 | **Where** | [sonarr.tv, macOS downloads](https://sonarr.tv/#downloads-macos); releases on [Sonarr/Sonarr](https://github.com/Sonarr/Sonarr/releases); [Servarr wiki: macOS install](https://wiki.servarr.com/sonarr/installation/macos) |
 | **Download** | Sonarr v4, latest stable seen in October 2026: **4.0.20.3014** (16 Sep 2026). Intel: `Sonarr.main.4.0.20.3014.osx-x64-app.zip`; Apple silicon: `...osx-arm64-app.zip`. macOS 10.15 or later |
-| **First install** | Move `Sonarr.app` to `/Applications`, then self-sign it and clear the quarantine flag ([Sonarr and Radarr, Step 1](../apps/sonarr-and-radarr.md#step-1-download-and-install)) |
+| **First install** | Move `Sonarr.app` to `/Applications`, then self-sign it and clear the quarantine flag ([Sonarr and Radarr, Step 1](../media/sonarr-and-radarr.md#step-1-download-and-install)) |
 | **Update** | The built-in updater (**System > Updates**; mechanism **Built-in** under Settings > General > Updates). It was set to automatic in the build. Take **System > Backup > Backup Now** first |
 | **Check version** | **System > Status**; or `media-health.sh` ([Step 1](#step-1-find-out-what-you-run-now)) |
 
@@ -592,7 +592,7 @@ codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.qua
 | --- | --- |
 | **Where** | [radarr.video, macOS downloads](https://radarr.video/#downloads-v3-macos); releases on [Radarr/Radarr](https://github.com/Radarr/Radarr/releases); [Servarr wiki: macOS install](https://wiki.servarr.com/radarr/installation/macos) |
 | **Download** | Latest stable listed in October 2026: **v6.3.0.10514** (12 Jul 2026), Intel asset `Radarr.master.6.3.0.10514.osx-app-core-x64.zip`; arm64 for Apple silicon. Newer 6.4.x builds were pre-releases (`develop`). macOS 10.15 or later |
-| **First install** | As for Sonarr, with `Radarr.app` ([Sonarr and Radarr, Step 1](../apps/sonarr-and-radarr.md#step-1-download-and-install)) |
+| **First install** | As for Sonarr, with `Radarr.app` ([Sonarr and Radarr, Step 1](../media/sonarr-and-radarr.md#step-1-download-and-install)) |
 | **Update** | **System > Updates**. Automatic updates were off in the build. Back up first |
 | **Check version** | **System > Status**; or `media-health.sh` |
 
@@ -608,13 +608,13 @@ codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.qua
 | --- | --- |
 | **Where** | [Jackett/Jackett](https://github.com/Jackett/Jackett) (README and [latest release](https://github.com/Jackett/Jackett/releases/latest)) |
 | **Download** | Newest seen in October 2026: **v0.24.2806** (7 to 8 Oct 2026). `Jackett.Binaries.macOS.tar.gz` (Intel) or `Jackett.Binaries.macOSARM64.tar.gz`. Requires **macOS 13 or later**. The build ran v0.24.2756 |
-| **First install** | Extract to a permanent folder, run `install_service_macos` ([Jackett and Prowlarr, Steps 1 to 3](../apps/jackett-and-prowlarr.md#step-1-download-jackett)) |
-| **Update** | Automatic, unless **Disable auto-update** is ticked (it was, in the build). By hand: unload the service, extract the new archive over the folder, load it again ([Updating Jackett](../apps/jackett-and-prowlarr.md#updating-jackett)) |
+| **First install** | Extract to a permanent folder, run `install_service_macos` ([Jackett and Prowlarr, Steps 1 to 3](../media/jackett-and-prowlarr.md#step-1-download-jackett)) |
+| **Update** | Automatic, unless **Disable auto-update** is ticked (it was, in the build). By hand: unload the service, extract the new archive over the folder, load it again ([Updating Jackett](../media/jackett-and-prowlarr.md#updating-jackett)) |
 | **Check version** | The bottom of the Jackett dashboard, `http://127.0.0.1:9117` |
 
 - **Jackett releases almost daily**, mostly fixes to indexer definitions. An install that never updates slowly loses indexers. Prefer auto-update, or update by hand at least monthly.
 - Settings live in `~/.config/Jackett` (or `~/Library/Application Support/Jackett`), not the program folder, so they survive an update.
-- FlareSolverr (for Cloudflare-protected indexers) has no macOS build; its README also says no captcha solver currently works ([FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)).
+- FlareSolverr (for Cloudflare-protected indexers) has no macOS build; its README also says no captcha solver currently works. This build runs it on the cluster: [FlareSolverr](#flaresolverr).
 
 ## Prowlarr (instead of Jackett)
 
@@ -622,11 +622,25 @@ codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.qua
 | --- | --- |
 | **Where** | [prowlarr.com](https://prowlarr.com/); releases on [Prowlarr/Prowlarr](https://github.com/Prowlarr/Prowlarr/releases); [Servarr wiki: macOS install](https://wiki.servarr.com/prowlarr/installation/macos) |
 | **Download** | Latest stable seen in October 2026: **2.6.5.5623** (16 Sep 2026), Intel asset `Prowlarr.master.2.6.5.5623.osx-app-core-x64.zip`; arm64 for Apple silicon. macOS 10.15 or later |
-| **First install** | Move to `/Applications`, self-sign, open `http://localhost:9696` ([Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#install-prowlarr-on-macos)) |
+| **First install** | Move to `/Applications`, self-sign, open `http://localhost:9696` ([Jackett and Prowlarr](../media/jackett-and-prowlarr.md#install-prowlarr-on-macos)) |
 | **Update** | The built-in updater; the update must also be self-signed, or installed by hand |
 | **Check version** | **System > Status** |
 
 - **Not verified:** Prowlarr was not installed in the build.
+
+## FlareSolverr
+
+| | |
+| --- | --- |
+| **Where** | [FlareSolverr/FlareSolverr](https://github.com/FlareSolverr/FlareSolverr), [releases](https://github.com/FlareSolverr/FlareSolverr/releases). Image `ghcr.io/flaresolverr/flaresolverr` (also `flaresolverr/flaresolverr` on Docker Hub), multi-arch: amd64, arm64, arm/v7, 386 |
+| **Download** | Newest seen in October 2026: **v3.5.0** (marked Latest). Ready-made binaries exist for Windows x64 and Linux x64 only; the cluster uses the image. The manifest [`files/flaresolverr/flaresolverr.yaml`](../../files/flaresolverr/flaresolverr.yaml) ships with `:latest` |
+| **First install** | `sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml` ([FlareSolverr for Jackett and Prowlarr](../media/flaresolverr.md#step-3-apply-it)). **Not yet applied by the author** |
+| **Update** | Change the `image:` tag in the manifest to the new release (for example `ghcr.io/flaresolverr/flaresolverr:v3.5.0`), then `sudo kubectl apply -f files/flaresolverr/flaresolverr.yaml` and `sudo kubectl -n flaresolverr rollout status deploy/flaresolverr`. With `:latest` and `imagePullPolicy: IfNotPresent`, a node keeps its cached image, so pin a tag to control updates. No data to back up |
+| **Check version** | `curl -s http://192.168.50.13:8191/` from the Jackett host; the JSON reply has a `version` field next to `"msg": "FlareSolverr is ready!"` |
+
+- **Skip v3.4.4.** Its release notes report a Linux binary bug; use v3.4.3 or v3.4.5 and later.
+- Update when indexers start timing out or failing with challenges that used to pass; Jackett's troubleshooting page lists updating FlareSolverr as a fix for timeouts.
+- No release adds captcha solving: the README says none of the captcha solvers work at this time.
 
 ## qBittorrent (Windows)
 
@@ -634,7 +648,7 @@ codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.qua
 | --- | --- |
 | **Where** | [qbittorrent.org/download](https://www.qbittorrent.org/download) and [news](https://www.qbittorrent.org/news); the project's GitHub. Nowhere else |
 | **Download** | Latest stable seen in October 2026: **v5.2.4** (28 Sep 2026). `qbittorrent_5.2.4_x64_setup.exe` (libtorrent 1.2.x, as in the build) or `qbittorrent_5.2.4_lt20_x64_setup.exe` (libtorrent 2.0.x). Windows 10 or later. A 5.3.0rc1 release candidate also exists; do not use it on the downloader. The build ran v5.1.0 |
-| **First install** | Run the installer with the defaults ([qBittorrent on Windows behind a VPN, Step 1](../apps/qbittorrent-windows-vpn.md#step-1-install-qbittorrent)) |
+| **First install** | Run the installer with the defaults ([qBittorrent on Windows behind a VPN, Step 1](../media/qbittorrent-windows-vpn.md#step-1-install-qbittorrent)) |
 | **Update** | Quit qBittorrent (**File > Exit**), back up `qBittorrent.ini` and `BT_backup`, run the new installer over the old one |
 | **Check version** | **Help > About** |
 
@@ -650,12 +664,12 @@ codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.qua
 | --- | --- |
 | **Where** | Your VPN vendor. For Proton VPN: [Proton VPN for Windows](https://protonvpn.com/download-windows) (x64 and ARM64) |
 | **Download** | The vendor's current installer. The version did not render on Proton's page when checked |
-| **First install** | Install, sign in, connect at start-up, Allow LAN connections on ([qBittorrent on Windows behind a VPN, Step 2](../apps/qbittorrent-windows-vpn.md#step-2-set-up-the-vpn-app)) |
+| **First install** | Install, sign in, connect at start-up, Allow LAN connections on ([qBittorrent on Windows behind a VPN, Step 2](../media/qbittorrent-windows-vpn.md#step-2-set-up-the-vpn-app)) |
 | **Update** | The app's own updater |
 | **Check version** | The app's About screen, or Windows **Settings > Apps > Installed apps** |
 
 - After an update or reinstall, run `Get-NetAdapter`: if the adapter has a new name, qBittorrent stays bound to the old one and transfers nothing.
-- Settings that matter to the downloader can change with the app version: **Allow LAN connections** (Settings > Connection > Advanced settings; on by default) ([Proton: LAN connections](https://protonvpn.com/support/lan-connections)), the kill switch mode ([Proton: kill switch](https://protonvpn.com/support/what-is-kill-switch)), and port forwarding, whose port usually changes on reconnect ([Proton: port forwarding](https://protonvpn.com/support/port-forwarding)). Re-run the checks in [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#check-it).
+- Settings that matter to the downloader can change with the app version: **Allow LAN connections** (Settings > Connection > Advanced settings; on by default) ([Proton: LAN connections](https://protonvpn.com/support/lan-connections)), the kill switch mode ([Proton: kill switch](https://protonvpn.com/support/what-is-kill-switch)), and port forwarding, whose port usually changes on reconnect ([Proton: port forwarding](https://protonvpn.com/support/port-forwarding)). Re-run the checks in [qBittorrent on Windows behind a VPN](../media/qbittorrent-windows-vpn.md#check-it).
 
 ## Recommended update order and cadence
 
@@ -681,12 +695,13 @@ Update from the edge of the network inwards, and the cluster from the bottom up.
 | 16 | Seerr | Monthly | Config volume backup | Public name loads |
 | 17 | cloudflared | With the Pi's `apt` updates | | Tunnel healthy |
 | 18 | Jackett (or Prowlarr) | Automatic; by hand at least monthly if auto-update is off | | Indexer tests pass in Sonarr and Radarr |
-| 19 | Sonarr, then Radarr | Monthly, on `main` / `master` | **Backup Now** in each app | **System > Status** Health clean; download client test passes |
-| 20 | Plex Media Server | Each public release; security releases promptly | Quit Plex; data folder backup | Remote Access green; one stream from outside |
-| 21 | VPN app on the torrent PC | When the vendor releases | | `Get-NetAdapter` shows the adapter under the same name |
-| 22 | qBittorrent | Each stable release, not release candidates | `qBittorrent.ini` and `BT_backup` | `qbit-check.ps1`; Sonarr and Radarr download client tests |
+| 19 | FlareSolverr (if used) | When a release fixes something you need, or when challenges that used to pass start failing | Note the current tag | `curl` shows the new `version`; the Cloudflare-protected indexers pass **Test** in Jackett |
+| 20 | Sonarr, then Radarr | Monthly, on `main` / `master` | **Backup Now** in each app | **System > Status** Health clean; download client test passes |
+| 21 | Plex Media Server | Each public release; security releases promptly | Quit Plex; data folder backup | Remote Access green; one stream from outside |
+| 22 | VPN app on the torrent PC | When the vendor releases | | `Get-NetAdapter` shows the adapter under the same name |
+| 23 | qBittorrent | Each stable release, not release candidates | `qBittorrent.ini` and `BT_backup` | `qbit-check.ps1`; Sonarr and Radarr download client tests |
 
-The media rows are independent of the cluster rows; they only need the LAN. Update the VPN app before qBittorrent, because the binding depends on the adapter's name.
+The media rows are independent of the cluster rows; they only need the LAN. FlareSolverr is the exception: it runs on the cluster. Update the VPN app before qBittorrent, because the binding depends on the adapter's name.
 
 After any of these, retake the backups ([Backups and secrets](backups-and-secrets.md)).
 
@@ -754,6 +769,9 @@ After an update round, run [Step 1](#step-1-find-out-what-you-run-now) again and
 - [Servarr wiki: Radarr FAQ](https://wiki.servarr.com/radarr/faq): Radarr's branches and the v6 changes.
 - [Jackett on GitHub](https://github.com/Jackett/Jackett): macOS requirements, the service install and manual updates.
 - [Prowlarr releases](https://github.com/Prowlarr/Prowlarr/releases): current Prowlarr builds.
+- [FlareSolverr on GitHub](https://github.com/FlareSolverr/FlareSolverr): images, platforms, the captcha-solver status.
+- [FlareSolverr releases](https://github.com/FlareSolverr/FlareSolverr/releases): release tags and the v3.4.4 note.
+- [Jackett troubleshooting: FlareSolverr](https://github.com/Jackett/Jackett/wiki/Troubleshooting#error-connecting-to-flaresolverr-server): updating FlareSolverr as a fix for timeouts.
 - [qBittorrent download](https://www.qbittorrent.org/download): the official installers and the libtorrent choice.
 - [qBittorrent news](https://www.qbittorrent.org/news): release dates, the 5.2.4 Web UI hardening and the Microsoft Store warning.
 - [Proton VPN: Allow LAN connections](https://protonvpn.com/support/lan-connections): the setting the downloader depends on.

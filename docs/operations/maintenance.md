@@ -366,7 +366,7 @@ When to rotate anything else (passwords, API keys, the tunnel token): [Backups a
 
 ### Step 13. Media server
 
-Only if you run the [media stack](../apps/media-stack-overview.md). It lives outside the cluster, so none of the steps above touch it.
+Only if you run the [media stack](../media/media-stack-overview.md). It lives outside the cluster, so none of the steps above touch it.
 
 **Run on: the Mac `media-1`**, as the user that runs the apps, from the root of this repo. Read-only; it prints no keys.
 
@@ -383,11 +383,11 @@ powershell -ExecutionPolicy Bypass -File .\files\media\qbit-check.ps1 -VpnAdapte
 | Check | Pass | If not |
 | --- | --- | --- |
 | `media-health.sh` | No `[FAIL]` lines. **Not yet run on a Mac by the author**; read its output critically the first time | The line names the app or folder; see [Troubleshooting, Media server](troubleshooting.md#media-server) |
-| `qbit-check.ps1` | No `[FAIL]` lines; qBittorrent bound to the VPN adapter. **Parse-checked only** | [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#troubleshooting) |
+| `qbit-check.ps1` | No `[FAIL]` lines; qBittorrent bound to the VPN adapter. **Parse-checked only** | [qBittorrent on Windows behind a VPN](../media/qbittorrent-windows-vpn.md#troubleshooting) |
 | Free space on the media volume | Above the script's `MIN_FREE_GB` (100 GB by default); `df -h /Volumes/Media` | Remove torrents that have finished seeding (their hardlinked library copy stays), or move older items to a second volume |
-| Sonarr and Radarr **System > Status**, Health | No messages | Each message links to the Servarr wiki entry; [Sonarr and Radarr](../apps/sonarr-and-radarr.md#troubleshooting) |
-| Indexers | No "Indexers are unavailable due to failures" | [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#troubleshooting) |
-| After a restart of either machine | The Mac is logged in with the volume mounted; the PC is signed in, the VPN is connected and `M:` is mapped before qBittorrent starts | [Media stack overview, Pitfalls](../apps/media-stack-overview.md#pitfalls) |
+| Sonarr and Radarr **System > Status**, Health | No messages | Each message links to the Servarr wiki entry; [Sonarr and Radarr](../media/sonarr-and-radarr.md#troubleshooting) |
+| Indexers | No "Indexers are unavailable due to failures" | [Jackett and Prowlarr](../media/jackett-and-prowlarr.md#troubleshooting) |
+| After a restart of either machine | The Mac is logged in with the volume mounted; the PC is signed in, the VPN is connected and `M:` is mapped before qBittorrent starts | [Media stack overview, Pitfalls](../media/media-stack-overview.md#pitfalls) |
 
 Updates, one app at a time, with a backup first. Versions, download links and the traps for each are in [Software and firmware](software-and-firmware.md#plex-media-server-macos):
 
@@ -396,7 +396,7 @@ Updates, one app at a time, with a backup first. Versions, download links and th
 | Plex Media Server | Install the new macOS build over the old one, or accept the update Plex Web offers | Stay on 1.43.3 or later: Plex published security fixes for 1.43.2 and earlier |
 | Sonarr | Built-in updater, automatic | Was on the `develop` branch in the build; prefer `main` |
 | Radarr | Automatic updates off; update from System > Updates | If macOS refuses to open it afterwards, run the `codesign` / `xattr` line again |
-| Jackett | Auto-update off in the build: update by hand at least monthly, because indexer definitions go stale | [Updating Jackett](../apps/jackett-and-prowlarr.md#updating-jackett) |
+| Jackett | Auto-update off in the build: update by hand at least monthly, because indexer definitions go stale | [Updating Jackett](../media/jackett-and-prowlarr.md#updating-jackett) |
 | qBittorrent | Run the new installer from qbittorrent.org | Check the interface binding and Web UI settings afterwards |
 | VPN app | The vendor's own updater | Re-run `qbit-check.ps1`. If a reinstall gives the adapter a different name, qBittorrent stays bound to the old one and transfers nothing |
 

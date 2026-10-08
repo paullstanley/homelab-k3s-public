@@ -9,7 +9,8 @@
 #   192.168.50.10  NOT MetalLB - kube-vip, the Kubernetes API. Deliberately outside this pool.
 #   192.168.50.11  Pi-hole (DNS + web), requested by name in files/pihole/values.yaml
 #   192.168.50.12  Traefik (every web app: Pi-hole UI, Homebridge, Seerr)
-#   192.168.50.13-15  free
+#   192.168.50.13  FlareSolverr (files/flaresolverr)
+#   192.168.50.14-15  free
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:

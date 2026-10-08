@@ -165,12 +165,12 @@ Challenge detected but FlareSolverr is not configured
 
 **FlareSolverr** is a separate proxy program that opens the page in a real browser, gets past the challenge, and hands the resulting cookies back to Jackett. You install it somewhere, then put its address (port `8191` by default, for example `http://<FLARESOLVERR_HOST>:8191`) in Jackett's **FlareSolverr API URL** setting. The Jackett README says it is optional and that most indexers do not need it.
 
-What limits it here:
+What to know before you set it up:
 
-- **There is no macOS build.** The [FlareSolverr README](https://github.com/FlareSolverr/FlareSolverr) offers Docker images (for x86, ARM and others) and ready-made programs for Windows x64 and Linux x64 only. On a Mac you would have to run it from source. Running it on another machine (a Linux host, a container on your cluster, or the Windows PC) and pointing Jackett at that address is the practical route. **Not verified by the author.**
-- **It may not help anyway.** The FlareSolverr README currently says: "At this time none of the captcha solvers work." Indexers whose challenge needs a captcha stay broken even with FlareSolverr.
+- **It does not solve captchas.** The [FlareSolverr README](https://github.com/FlareSolverr/FlareSolverr) currently says: "At this time none of the captcha solvers work." Indexers whose challenge is hCaptcha or an image captcha stay broken even with FlareSolverr; Jackett then reports "a captcha was detected".
+- **Where it runs matters.** There is no macOS build, and the cookies it earns may only be valid from the same public IP address as Jackett. Do not run it on a PC whose traffic goes through a VPN while Jackett's does not.
 
-In the build no FlareSolverr was set up, and three indexers failed their test with the message above while the others worked. If an indexer needs a challenge solved, the simplest fix is to remove it from Jackett **and** from Sonarr and Radarr (Step 7), and rely on indexers that answer directly.
+How to choose where to run it, the cluster manifest, the Jackett and Prowlarr settings and every FlareSolverr error message are on [FlareSolverr for Jackett and Prowlarr](./flaresolverr.md). In the build, three indexers failed their test with the message above while the others worked; a FlareSolverr manifest for the cluster was prepared for them but **not yet applied by the author**. If an indexer still fails, or shows a captcha, remove it from Jackett **and** from Sonarr and Radarr (Step 7), and rely on indexers that answer directly.
 
 ## Indexer traffic and privacy
 
@@ -275,7 +275,7 @@ In Sonarr and Radarr: **Settings > Indexers > Test All** passes, and **System > 
 | What happens | Why | How to avoid or recover |
 | --- | --- | --- |
 | Health warnings "Indexers are unavailable due to failures" never go away | An indexer was removed from Jackett but its Torznab entry is still in Sonarr or Radarr | Delete the entry in the app (Step 7). Or move to Prowlarr with Full Sync |
-| Some indexers fail with "Challenge detected but FlareSolverr is not configured" | The site is behind a Cloudflare challenge | Remove those indexers from Jackett and the apps, or run FlareSolverr on another machine. Its README says the captcha solvers do not currently work |
+| Some indexers fail with "Challenge detected but FlareSolverr is not configured" | The site is behind a Cloudflare challenge | Set up [FlareSolverr](./flaresolverr.md), or remove those indexers from Jackett and the apps. Captcha challenges stay unsolved either way |
 | "Jackett All Endpoint Used" warning | The "all" feed was added as one indexer | Replace it with one Torznab entry per indexer |
 | Indexers break one by one over weeks | Auto-update is off and indexer sites changed | Turn auto-update on, or update by hand regularly |
 | Jackett is not running after a restart of the Mac | It is a LaunchAgent: it runs only after the user logs in | Turn on automatic login for that user, or log in. See [Plex Media Server](./plex-media-server.md) for the always-on Mac settings |
@@ -295,7 +295,7 @@ In Sonarr and Radarr: **Settings > Indexers > Test All** passes, and **System > 
 | Sonarr indexer test: "Unable to connect to indexer" | Wrong URL, Jackett not running, or a different port | Copy the feed again with **Copy Torznab Feed**; check `lsof -nP -iTCP:9117 -sTCP:LISTEN` |
 | Sonarr indexer test: invalid API key | The key was regenerated or mistyped | Copy it again from the top of the Jackett dashboard into every Torznab entry |
 | Indexer test fails in Jackett with a login error | The indexer's own credentials or cookie expired | Open the indexer's settings in Jackett and enter them again |
-| Indexer test fails with "Challenge detected..." | Cloudflare challenge | See [FlareSolverr](#flaresolverr-and-cloudflare-challenges) |
+| Indexer test fails with "Challenge detected..." | Cloudflare challenge | See [FlareSolverr and Cloudflare challenges](#flaresolverr-and-cloudflare-challenges), then [FlareSolverr for Jackett and Prowlarr](./flaresolverr.md) |
 | Another computer cannot open Jackett | External access is off (the default) | Turn it on if you need it, set the admin password, and allow the connection in the macOS firewall |
 | Prowlarr does not start after an update | The updated app is not signed | Run the `codesign` and `xattr` commands again |
 | Prowlarr's app test fails | Wrong server URL or API key; a URL base is in use and was not included | Use `http://127.0.0.1:8989` / `:7878` and the key from each app's **Settings > General**; include any URL base |

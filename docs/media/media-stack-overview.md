@@ -11,7 +11,7 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 | **Applies to** | Observed on a working build: Plex Media Server 1.43.4.10903, Sonarr 4.0.20.3014, Radarr 6.4.4.10685 and Jackett v0.24.2756 as native apps on an Intel Mac running macOS 26; qBittorrent v5.1.0 on a Windows PC bound to a VPN app's network adapter; Seerr on a k3s cluster behind a Cloudflare tunnel |
 | **Also works for** | Apple Silicon Macs (each project ships an arm64 build), Prowlarr instead of Jackett, a Linux or Docker downloader. These variants were **not tested by the author** |
 | **Time** | Reading: 20 minutes. Building the whole stack from the pages listed below: an afternoon |
-| **You need first** | A Mac that stays on, with the media disk attached; a Windows PC for the downloader; a VPN subscription whose app runs on Windows; optionally [Pi-hole](pihole.md) for local names and [Seerr](seerr-cloudflare-tunnel.md) for requests |
+| **You need first** | A Mac that stays on, with the media disk attached; a Windows PC for the downloader; a VPN subscription whose app runs on Windows; optionally [Pi-hole](../apps/pihole.md) for local names and [Seerr](../apps/seerr-cloudflare-tunnel.md) for requests |
 
 ## How it works
 
@@ -23,8 +23,9 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 | **Sonarr** | Keeps a list of wanted TV series. Watches the indexers for new episodes, sends them to the downloader, then renames and files the result | Mac `media-1` | [Sonarr and Radarr](sonarr-and-radarr.md) |
 | **Radarr** | The same for films | Mac `media-1` | [Sonarr and Radarr](sonarr-and-radarr.md) |
 | **Jackett** or **Prowlarr** | Indexer managers. They talk to each of your indexers (sites or services that list releases) and offer them to Sonarr and Radarr in one standard format, called Torznab | Mac `media-1` (Jackett) | [Jackett and Prowlarr](jackett-and-prowlarr.md) |
+| **FlareSolverr** (optional) | A helper for Jackett or Prowlarr that gets past Cloudflare's browser checks on some indexers. Not captchas | The k3s cluster, `192.168.50.13:8191` (prepared, not yet applied by the author) | [FlareSolverr](flaresolverr.md) |
 | **qBittorrent** | The download client. Sonarr and Radarr hand it a torrent and a category; it downloads and seeds | Windows PC `torrent-pc`, behind the VPN | [qBittorrent on Windows behind a VPN](qbittorrent-windows-vpn.md) |
-| **Seerr** | A request site for the household. A request becomes an entry in Sonarr or Radarr | k3s cluster, published through a Cloudflare tunnel | [Seerr](seerr-cloudflare-tunnel.md) |
+| **Seerr** | A request site for the household. A request becomes an entry in Sonarr or Radarr | k3s cluster, published through a Cloudflare tunnel | [Seerr](../apps/seerr-cloudflare-tunnel.md) |
 
 Seerr is the successor of Overseerr and Jellyseerr; older guides call it Overseerr.
 
@@ -145,13 +146,13 @@ Set the same mapping in **both** Sonarr and Radarr. Each app has its own list.
 | `9117` | Jackett | Mac | Sonarr and Radarr on the same Mac (`127.0.0.1`); your browser for setup |
 | `9696` | Prowlarr (if used instead of Jackett) | Mac | Your browser; Prowlarr itself connects out to Sonarr and Radarr |
 | `8080` | qBittorrent Web UI | Windows PC, LAN address only | Sonarr, Radarr, your browser. Never the internet |
-| `5055` | Seerr | Inside its pod on k3s | Only Traefik; people use `https://request.example.com` ([Seerr](seerr-cloudflare-tunnel.md)) |
+| `5055` | Seerr | Inside its pod on k3s | Only Traefik; people use `https://request.example.com` ([Seerr](../apps/seerr-cloudflare-tunnel.md)) |
 
 Only Plex's port is ever forwarded on the router. Sonarr, Radarr, Jackett and qBittorrent stay on the LAN.
 
 ### Local DNS names
 
-Names are easier to remember than ports and addresses, and survive moving an app. With [Pi-hole](pihole.md), add service names to `dnsmasq.customDnsEntries` in [`files/pihole/values.yaml`](../../files/pihole/values.yaml):
+Names are easier to remember than ports and addresses, and survive moving an app. With [Pi-hole](../apps/pihole.md), add service names to `dnsmasq.customDnsEntries` in [`files/pihole/values.yaml`](../../files/pihole/values.yaml):
 
 ```yaml
 dnsmasq:
@@ -218,13 +219,15 @@ Follow [qBittorrent on Windows behind a VPN](qbittorrent-windows-vpn.md): share 
 
 Follow [Jackett and Prowlarr](jackett-and-prowlarr.md) and add your indexers.
 
+Optional: if some indexers fail with "Challenge detected but FlareSolverr is not configured", add [FlareSolverr](flaresolverr.md). It solves Cloudflare's browser checks, not captchas.
+
 ### Step 4. Set up Sonarr and Radarr
 
 Follow [Sonarr and Radarr](sonarr-and-radarr.md): root folders, qBittorrent as download client, the remote path mapping, indexers, naming, and the Plex connection.
 
 ### Step 5. Add requests
 
-Follow [Seerr](seerr-cloudflare-tunnel.md) and connect it to Plex, Sonarr and Radarr.
+Follow [Seerr](../apps/seerr-cloudflare-tunnel.md) and connect it to Plex, Sonarr and Radarr.
 
 ### Step 6. Add the names
 

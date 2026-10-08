@@ -289,7 +289,7 @@ In each app, **Settings > Download Clients > + > qBittorrent**:
 
 And a remote path mapping under **Settings > Download Clients > Remote Path Mappings**: host `192.168.50.16`, remote path `M:\Downloads\`, local path `/Volumes/Media/Downloads/`. Type the host exactly as in the download client and end both paths with their separator. Full details, including the case-sensitivity trap, are in [Sonarr and Radarr](./sonarr-and-radarr.md).
 
-If you want to reach the Web UI by name, give the PC a local DNS name such as `torrent.home.example.com` pointing at `192.168.50.16` (with Pi-hole: [Local names](./pihole.md#local-names-in-the-values-file)), and add that name to the Host header validation list.
+If you want to reach the Web UI by name, give the PC a local DNS name such as `torrent.home.example.com` pointing at `192.168.50.16` (with Pi-hole: [Local names](../apps/pihole.md#local-names-in-the-values-file)), and add that name to the Host header validation list.
 
 ## Running qBittorrent as a Windows service
 

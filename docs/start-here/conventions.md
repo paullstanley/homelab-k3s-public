@@ -23,7 +23,7 @@ Every page uses the same made-up names and addresses, so that commands on differ
 | Address | IPv6 | What |
 | --- | --- | --- |
 | `192.168.50.1` | `fd00:1234:5678:50::1` | Router |
-| `192.168.50.2` | `::2` | `media-1`, the media server Mac (Plex, Sonarr, Radarr, Jackett): [Media stack overview](../apps/media-stack-overview.md) |
+| `192.168.50.2` | `::2` | `media-1`, the media server Mac (Plex, Sonarr, Radarr, Jackett): [Media stack overview](../media/media-stack-overview.md) |
 | `192.168.50.3` | `::3` | OpenWrt access point, `ap-openwrt` |
 | `192.168.50.4` | none | Stock-firmware access point, `ap-stock` |
 | `192.168.50.5` | `::5` | `server-1`, Raspberry Pi, first k3s server |
@@ -33,7 +33,8 @@ Every page uses the same made-up names and addresses, so that commands on differ
 | `192.168.50.10` | | Kubernetes API, floating (kube-vip) |
 | `192.168.50.11` | `fd00:1234:5678:50::11` | Pi-hole (MetalLB) |
 | `192.168.50.12` | | Traefik (MetalLB): every web UI |
-| `192.168.50.13` to `.15` | | Spare MetalLB addresses |
+| `192.168.50.13` | | FlareSolverr (MetalLB), port `8191`, LAN only: [FlareSolverr](../media/flaresolverr.md) |
+| `192.168.50.14` to `.15` | | Spare MetalLB addresses |
 | `192.168.50.16` | | `torrent-pc`, the Windows PC running qBittorrent behind a VPN app |
 | `192.168.50.117` | | AiMesh node (handed out by DHCP; yours will differ) |
 

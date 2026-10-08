@@ -194,7 +194,7 @@ Automatic Remote Access asks the router through UPnP or NAT-PMP. A manual forwar
 
 ### Step 10. Plex behind Cloudflare (optional)
 
-**Observed on a working build:** the custom server access URL was `https://plex.example.com`, and that public name resolved to Cloudflare's addresses, the same as the [Seerr tunnel](seerr-cloudflare-tunnel.md) name. How Cloudflare forwarded it to the Mac (a tunnel route, or a proxied DNS record to the home address) was not recorded. The port forward from Step 9 was also in place, so most players probably connected directly.
+**Observed on a working build:** the custom server access URL was `https://plex.example.com`, and that public name resolved to Cloudflare's addresses, the same as the [Seerr tunnel](../apps/seerr-cloudflare-tunnel.md) name. How Cloudflare forwarded it to the Mac (a tunnel route, or a proxied DNS record to the home address) was not recorded. The port forward from Step 9 was also in place, so most players probably connected directly.
 
 If you want to do the same, the tunnel route would look like the Seerr one, with `plex` as the subdomain and `http://192.168.50.2:32400` as the URL. **Not verified by the author.** Before you do it:
 

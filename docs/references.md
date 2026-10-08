@@ -213,28 +213,6 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [homebridge-plugins/homebridge-resideo](https://github.com/homebridge-plugins/homebridge-resideo): the Resideo plugin; needs a free Resideo developer account.
 - [jfarmer08/homebridge-wyze-smart-home](https://github.com/jfarmer08/homebridge-wyze-smart-home): the Wyze plugin and its required API key and key ID fields.
 
-### [Jackett and Prowlarr: indexers for Sonarr and Radarr on a Mac](apps/jackett-and-prowlarr.md)
-
-- [Jackett on GitHub (README)](https://github.com/Jackett/Jackett): macOS requirements and service install, ports, the "all" endpoint and its limits, FlareSolverr, command-line options.
-- [Jackett releases](https://github.com/Jackett/Jackett/releases/latest): downloads for each platform.
-- [FlareSolverr on GitHub](https://github.com/FlareSolverr/FlareSolverr): what it is, supported platforms, default port, and the note that captcha solvers do not currently work.
-- [Sonarr system and health checks (Servarr wiki)](https://wiki.servarr.com/sonarr/system): "Jackett All Endpoint Used", "Indexers are unavailable due to failures", "Indexer Download Client is Invalid".
-- [Prowlarr quick start guide (Servarr wiki)](https://wiki.servarr.com/prowlarr/quick-start-guide): adding indexers and apps, sync levels, the `(Prowlarr)` suffix.
-- [Prowlarr macOS installation (Servarr wiki)](https://wiki.servarr.com/prowlarr/installation/macos): install, self-signing, port 9696.
-- [Prowlarr settings (Servarr wiki)](https://wiki.servarr.com/prowlarr/settings): indexer proxies, apps, sync profiles.
-- [Prowlarr downloads](https://prowlarr.com/): the macOS app builds.
-
-### [Media stack overview: Plex, Sonarr, Radarr, an indexer manager, qBittorrent and Seerr](apps/media-stack-overview.md)
-
-- [TRaSH Guides: Hardlinks and Instant Moves](https://trash-guides.info/File-and-Folder-Structure/Hardlinks-and-Instant-Moves/): what hardlinks and atomic moves are and why they need one filesystem. The pages showed a "Docs built by Pull Request" banner when checked; recheck the content.
-- [TRaSH Guides: File and Folder Structure](https://trash-guides.info/File-and-Folder-Structure/): the common single `data` folder layout.
-- [TRaSH Guides: Remote Path Mappings](https://trash-guides.info/Radarr/Tips/Radarr-remote-path-mapping/): when and how to map a download client's path to the app's path.
-- [Servarr wiki: Docker Guide](https://wiki.servarr.com/docker-guide): why separate mounts break hardlinks and when a remote path map is needed.
-- [Sonarr FAQ](https://wiki.servarr.com/sonarr/faq): mapped network drives versus UNC paths, and why there are two files while seeding.
-- [Sonarr System (health checks)](https://wiki.servarr.com/sonarr/system): the health messages for download clients and remote path mappings.
-- [Rafael Magalhaes: Home media server with Plex, Sonarr, Radarr, qBittorrent and Overseerr](https://dev.to/rafaelmagalhaes/home-media-server-with-plex-sonarr-radarr-qbitorrent-and-overseerr-2a84): a native Windows build on one PC (also on [Medium](https://medium.com/@rafaelmagalhaes93/home-media-server-with-plex-sonarr-radarr-qbitorrent-and-overseerr-fec90f623777)).
-- [How to setup Plex with Sonarr, Radarr, Jackett, Overseerr and qBitTorrent using Docker](https://gist.github.com/rickklaasboer/b5c159833ff2971fccd32296d8ba2260): a Docker build on Ubuntu with a VPN downloader container and a later hardlinks section. Its author marks it as outdated.
-
 ### [Pi-hole on k3s: three replicas behind one address](apps/pihole.md)
 
 - [MoJo2600/pihole-kubernetes](https://github.com/MoJo2600/pihole-kubernetes): the Helm chart used here, with its values reference.
@@ -244,32 +222,6 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [Traefik: Kubernetes Ingress routing configuration](https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/): the sticky-cookie Service annotations and the `router.middlewares` Ingress annotation.
 - [Cloudflare changelog: cloudflared proxy-dns command will be removed starting February 2, 2026](https://developers.cloudflare.com/changelog/post/2025-11-11-cloudflared-proxy-dns/): why the sidecar image is pinned.
 - [Pi-hole forum: Pi-hole not working after updating cloudflared](https://discourse.pi-hole.net/t/pi-hole-not-working-after-updating-cloudflared/85149): the same removal seen on a plain install, with dnscrypt-proxy and Unbound as replacements.
-
-### [Plex Media Server on an Intel Mac](apps/plex-media-server.md)
-
-- [Plex: Installation](https://support.plex.tv/articles/200288586-installation/): installing, the local Web App address and the SSH tunnel trick.
-- [Plex: Basic Setup Wizard](https://support.plex.tv/articles/200288896-basic-setup-wizard/): signing in, friendly name, remote access and libraries.
-- [Plex: Creating Libraries](https://support.plex.tv/articles/200288926-creating-libraries/): library types and several folders per library.
-- [Plex: Naming and organizing your TV show files](https://support.plex.tv/articles/naming-and-organizing-your-tv-show-files/) and [movie files](https://support.plex.tv/articles/naming-and-organizing-your-movie-media-files/): folder and file naming and ID hints.
-- [Plex: Library settings](https://support.plex.tv/articles/200289526-library/), [Network settings](https://support.plex.tv/articles/200430283-network/), [Transcoder settings](https://support.plex.tv/articles/transcoder/), [Scheduled Tasks](https://support.plex.tv/articles/201553286-scheduled-tasks/): every setting used above.
-- [Plex: Remote Access](https://support.plex.tv/articles/200289506-remote-access/) and [Troubleshooting Remote Access](https://support.plex.tv/articles/200931138-troubleshooting-remote-access/): manual port, double NAT and CGNAT.
-- [Plex: Advanced, hidden server settings](https://support.plex.tv/articles/201105343-advanced-hidden-server-settings/): the `defaults` command and preference keys on macOS.
-- [Plex: Where is the data directory](https://support.plex.tv/articles/202915258-where-is-the-plex-media-server-data-directory-located/) and [Move an install to another system](https://support.plex.tv/articles/201370363-move-an-install-to-another-system/): backup and migration.
-- [Apple: Set sleep and wake settings (macOS 26)](https://support.apple.com/guide/mac-help/set-sleep-and-wake-settings-mchle41a6ccd/26.0/mac/26.0) and [Open items automatically when you log in](https://support.apple.com/guide/mac-help/mh15189/26.0/mac/26.0): keeping a Mac awake and starting apps at login.
-- [Cloudflare Service-Specific Terms: Application Services](https://www.cloudflare.com/service-specific-terms-application-services/): the CDN clause on video and large files.
-
-### [qBittorrent on Windows behind a VPN app](apps/qbittorrent-windows-vpn.md)
-
-- [qBittorrent download page](https://www.qbittorrent.org/download): current stable release and the Windows installers.
-- [Explanation of Options in qBittorrent (wiki)](https://github.com/qbittorrent/qBittorrent/wiki/Explanation-of-Options-in-qBittorrent): what the options do, including Advanced > Network interface.
-- [qBittorrent Web API (v5.0)](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-5.0)): login, the SID cookie, the Referer/Origin requirement, the 403 ban response.
-- [TRaSH Guides: qBittorrent basic setup](https://trash-guides.info/Downloaders/qBittorrent/Basic-Setup/): Automatic torrent management, ports, seeding limits, encryption, anonymous mode. When checked the page carried a "Docs built by Pull Request" banner; recheck it.
-- [Proton VPN: Allow LAN connections](https://protonvpn.com/support/lan-connections): where the setting is and what it does.
-- [Proton VPN: kill switch](https://protonvpn.com/support/what-is-kill-switch): Standard and Advanced modes.
-- [Proton VPN: split tunneling](https://protonvpn.com/support/protonvpn-split-tunneling): Exclude and Include modes, IP ranges.
-- [Proton VPN: port forwarding](https://protonvpn.com/support/port-forwarding): requirements, changing ports, setting the port in qBittorrent.
-- [New-NetFirewallRule (Microsoft Learn)](https://learn.microsoft.com/en-us/powershell/module/netsecurity/new-netfirewallrule): parameters and remote address formats.
-- [Running qBittorrent as a Windows service (community discussion)](https://github.com/qbittorrent/qBittorrent/discussions/17526): NSSM, accounts, mapped drives under services.
 
 ### [Seerr behind a Cloudflare tunnel through Traefik](apps/seerr-cloudflare-tunnel.md)
 
@@ -282,7 +234,67 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [Traefik: Kubernetes Ingress routing configuration](https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/): how Traefik turns an Ingress into a route.
 - [K3s: Volumes and storage](https://docs.k3s.io/add-ons/storage): the local-path provisioner and the folder backed up above.
 
-### [Sonarr and Radarr on an Intel Mac](apps/sonarr-and-radarr.md)
+## Media
+
+### [FlareSolverr for Jackett and Prowlarr](media/flaresolverr.md)
+
+- [FlareSolverr on GitHub (README)](https://github.com/FlareSolverr/FlareSolverr): how it works, images and architectures, binaries, running from source, environment variables, the `/v1` API, the captcha-solver status and the security warning.
+- [FlareSolverr releases](https://github.com/FlareSolverr/FlareSolverr/releases): release tags to pin, and the v3.4.4 Linux binary note.
+- [FlareSolverr issue #24](https://github.com/FlareSolverr/FlareSolverr/issues/24) and [issue #31](https://github.com/FlareSolverr/FlareSolverr/issues/31): the captcha issues Jackett's troubleshooting page points to.
+- [Jackett README: configuring FlareSolverr](https://github.com/Jackett/Jackett#configuring-flaresolverr): the API URL and Max Timeout settings.
+- [Jackett troubleshooting: Error connecting to FlareSolverr server](https://github.com/Jackett/Jackett/wiki/Troubleshooting#error-connecting-to-flaresolverr-server): every FlareSolverr error message, URL forms, captcha and cookie problems, timeouts.
+- [Prowlarr settings: indexer proxies (Servarr wiki)](https://wiki.servarr.com/prowlarr/settings#indexer-proxies): the FlareSolverr proxy fields and how tags select indexers.
+- [MetalLB usage](https://metallb.io/usage/): requesting a specific address with the `metallb.io/loadBalancerIPs` annotation.
+
+### [Jackett and Prowlarr: indexers for Sonarr and Radarr on a Mac](media/jackett-and-prowlarr.md)
+
+- [Jackett on GitHub (README)](https://github.com/Jackett/Jackett): macOS requirements and service install, ports, the "all" endpoint and its limits, FlareSolverr, command-line options.
+- [Jackett releases](https://github.com/Jackett/Jackett/releases/latest): downloads for each platform.
+- [FlareSolverr on GitHub](https://github.com/FlareSolverr/FlareSolverr): what it is, supported platforms, default port, and the note that captcha solvers do not currently work.
+- [Sonarr system and health checks (Servarr wiki)](https://wiki.servarr.com/sonarr/system): "Jackett All Endpoint Used", "Indexers are unavailable due to failures", "Indexer Download Client is Invalid".
+- [Prowlarr quick start guide (Servarr wiki)](https://wiki.servarr.com/prowlarr/quick-start-guide): adding indexers and apps, sync levels, the `(Prowlarr)` suffix.
+- [Prowlarr macOS installation (Servarr wiki)](https://wiki.servarr.com/prowlarr/installation/macos): install, self-signing, port 9696.
+- [Prowlarr settings (Servarr wiki)](https://wiki.servarr.com/prowlarr/settings): indexer proxies, apps, sync profiles.
+- [Prowlarr downloads](https://prowlarr.com/): the macOS app builds.
+
+### [Media stack overview: Plex, Sonarr, Radarr, an indexer manager, qBittorrent and Seerr](media/media-stack-overview.md)
+
+- [TRaSH Guides: Hardlinks and Instant Moves](https://trash-guides.info/File-and-Folder-Structure/Hardlinks-and-Instant-Moves/): what hardlinks and atomic moves are and why they need one filesystem. The pages showed a "Docs built by Pull Request" banner when checked; recheck the content.
+- [TRaSH Guides: File and Folder Structure](https://trash-guides.info/File-and-Folder-Structure/): the common single `data` folder layout.
+- [TRaSH Guides: Remote Path Mappings](https://trash-guides.info/Radarr/Tips/Radarr-remote-path-mapping/): when and how to map a download client's path to the app's path.
+- [Servarr wiki: Docker Guide](https://wiki.servarr.com/docker-guide): why separate mounts break hardlinks and when a remote path map is needed.
+- [Sonarr FAQ](https://wiki.servarr.com/sonarr/faq): mapped network drives versus UNC paths, and why there are two files while seeding.
+- [Sonarr System (health checks)](https://wiki.servarr.com/sonarr/system): the health messages for download clients and remote path mappings.
+- [Rafael Magalhaes: Home media server with Plex, Sonarr, Radarr, qBittorrent and Overseerr](https://dev.to/rafaelmagalhaes/home-media-server-with-plex-sonarr-radarr-qbitorrent-and-overseerr-2a84): a native Windows build on one PC (also on [Medium](https://medium.com/@rafaelmagalhaes93/home-media-server-with-plex-sonarr-radarr-qbitorrent-and-overseerr-fec90f623777)).
+- [How to setup Plex with Sonarr, Radarr, Jackett, Overseerr and qBitTorrent using Docker](https://gist.github.com/rickklaasboer/b5c159833ff2971fccd32296d8ba2260): a Docker build on Ubuntu with a VPN downloader container and a later hardlinks section. Its author marks it as outdated.
+
+### [Plex Media Server on an Intel Mac](media/plex-media-server.md)
+
+- [Plex: Installation](https://support.plex.tv/articles/200288586-installation/): installing, the local Web App address and the SSH tunnel trick.
+- [Plex: Basic Setup Wizard](https://support.plex.tv/articles/200288896-basic-setup-wizard/): signing in, friendly name, remote access and libraries.
+- [Plex: Creating Libraries](https://support.plex.tv/articles/200288926-creating-libraries/): library types and several folders per library.
+- [Plex: Naming and organizing your TV show files](https://support.plex.tv/articles/naming-and-organizing-your-tv-show-files/) and [movie files](https://support.plex.tv/articles/naming-and-organizing-your-movie-media-files/): folder and file naming and ID hints.
+- [Plex: Library settings](https://support.plex.tv/articles/200289526-library/), [Network settings](https://support.plex.tv/articles/200430283-network/), [Transcoder settings](https://support.plex.tv/articles/transcoder/), [Scheduled Tasks](https://support.plex.tv/articles/201553286-scheduled-tasks/): every setting used above.
+- [Plex: Remote Access](https://support.plex.tv/articles/200289506-remote-access/) and [Troubleshooting Remote Access](https://support.plex.tv/articles/200931138-troubleshooting-remote-access/): manual port, double NAT and CGNAT.
+- [Plex: Advanced, hidden server settings](https://support.plex.tv/articles/201105343-advanced-hidden-server-settings/): the `defaults` command and preference keys on macOS.
+- [Plex: Where is the data directory](https://support.plex.tv/articles/202915258-where-is-the-plex-media-server-data-directory-located/) and [Move an install to another system](https://support.plex.tv/articles/201370363-move-an-install-to-another-system/): backup and migration.
+- [Apple: Set sleep and wake settings (macOS 26)](https://support.apple.com/guide/mac-help/set-sleep-and-wake-settings-mchle41a6ccd/26.0/mac/26.0) and [Open items automatically when you log in](https://support.apple.com/guide/mac-help/mh15189/26.0/mac/26.0): keeping a Mac awake and starting apps at login.
+- [Cloudflare Service-Specific Terms: Application Services](https://www.cloudflare.com/service-specific-terms-application-services/): the CDN clause on video and large files.
+
+### [qBittorrent on Windows behind a VPN app](media/qbittorrent-windows-vpn.md)
+
+- [qBittorrent download page](https://www.qbittorrent.org/download): current stable release and the Windows installers.
+- [Explanation of Options in qBittorrent (wiki)](https://github.com/qbittorrent/qBittorrent/wiki/Explanation-of-Options-in-qBittorrent): what the options do, including Advanced > Network interface.
+- [qBittorrent Web API (v5.0)](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-5.0)): login, the SID cookie, the Referer/Origin requirement, the 403 ban response.
+- [TRaSH Guides: qBittorrent basic setup](https://trash-guides.info/Downloaders/qBittorrent/Basic-Setup/): Automatic torrent management, ports, seeding limits, encryption, anonymous mode. When checked the page carried a "Docs built by Pull Request" banner; recheck it.
+- [Proton VPN: Allow LAN connections](https://protonvpn.com/support/lan-connections): where the setting is and what it does.
+- [Proton VPN: kill switch](https://protonvpn.com/support/what-is-kill-switch): Standard and Advanced modes.
+- [Proton VPN: split tunneling](https://protonvpn.com/support/protonvpn-split-tunneling): Exclude and Include modes, IP ranges.
+- [Proton VPN: port forwarding](https://protonvpn.com/support/port-forwarding): requirements, changing ports, setting the port in qBittorrent.
+- [New-NetFirewallRule (Microsoft Learn)](https://learn.microsoft.com/en-us/powershell/module/netsecurity/new-netfirewallrule): parameters and remote address formats.
+- [Running qBittorrent as a Windows service (community discussion)](https://github.com/qbittorrent/qBittorrent/discussions/17526): NSSM, accounts, mapped drives under services.
+
+### [Sonarr and Radarr on an Intel Mac](media/sonarr-and-radarr.md)
 
 - [Sonarr: downloads](https://sonarr.tv/#downloads-macos) and [Sonarr releases](https://github.com/Sonarr/Sonarr/releases): the macOS app build and current version.
 - [Radarr: downloads](https://radarr.video/#downloads-v3-macos) and [Radarr releases](https://github.com/Radarr/Radarr/releases): the macOS app build and current version.
@@ -358,6 +370,9 @@ Every external document cited by the guides, grouped by the page that cites it. 
 - [Servarr wiki: Radarr FAQ](https://wiki.servarr.com/radarr/faq): Radarr's branches and the v6 changes.
 - [Jackett on GitHub](https://github.com/Jackett/Jackett): macOS requirements, the service install and manual updates.
 - [Prowlarr releases](https://github.com/Prowlarr/Prowlarr/releases): current Prowlarr builds.
+- [FlareSolverr on GitHub](https://github.com/FlareSolverr/FlareSolverr): images, platforms, the captcha-solver status.
+- [FlareSolverr releases](https://github.com/FlareSolverr/FlareSolverr/releases): release tags and the v3.4.4 note.
+- [Jackett troubleshooting: FlareSolverr](https://github.com/Jackett/Jackett/wiki/Troubleshooting#error-connecting-to-flaresolverr-server): updating FlareSolverr as a fix for timeouts.
 - [qBittorrent download](https://www.qbittorrent.org/download): the official installers and the libtorrent choice.
 - [qBittorrent news](https://www.qbittorrent.org/news): release dates, the 5.2.4 Web UI hardening and the Microsoft Store warning.
 - [Proton VPN: Allow LAN connections](https://protonvpn.com/support/lan-connections): the setting the downloader depends on.

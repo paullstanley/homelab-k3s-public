@@ -436,16 +436,16 @@ Each is independent.
 ### Phase 12. Media server (optional)
 
 **Goal:** a request in Seerr becomes a download on the torrent PC and then an item in Plex, without anyone touching a file.
-**Needs:** the Mac `media-1` on `192.168.50.2` with the media volume, the Windows PC `torrent-pc` on `192.168.50.16`, a VPN subscription. Seerr from Phase 11 is optional. None of this runs on the cluster.
+**Needs:** the Mac `media-1` on `192.168.50.2` with the media volume, the Windows PC `torrent-pc` on `192.168.50.16`, a VPN subscription. Seerr from Phase 11 is optional. None of this runs on the cluster, except the optional FlareSolverr in step 4.
 
-1. Read [Media stack overview](../apps/media-stack-overview.md): how the parts connect, the folder layout on one volume, and the remote path mapping.
-2. [Plex Media Server](../apps/plex-media-server.md): stop the Mac sleeping, make it start after a power cut, create `/Volumes/Media/TV`, `/Volumes/Media/Movies` and `/Volumes/Media/Downloads`, install and claim Plex, add the libraries.
-3. [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md): share `/Volumes/Media/Downloads` from the Mac, map it as `M:`, install the VPN app and qBittorrent, bind qBittorrent to the VPN adapter, open the Web UI to the LAN only.
-4. [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md): install one of them and add your indexers.
-5. [Sonarr and Radarr](../apps/sonarr-and-radarr.md): root folders, qBittorrent as download client, the remote path mapping in both apps, indexers, naming, the Plex connection.
-6. Connect Seerr to Plex, Sonarr and Radarr ([Seerr](../apps/seerr-cloudflare-tunnel.md)), and add the media names to Pi-hole ([Media stack overview](../apps/media-stack-overview.md#local-dns-names)).
+1. Read [Media stack overview](../media/media-stack-overview.md): how the parts connect, the folder layout on one volume, and the remote path mapping.
+2. [Plex Media Server](../media/plex-media-server.md): stop the Mac sleeping, make it start after a power cut, create `/Volumes/Media/TV`, `/Volumes/Media/Movies` and `/Volumes/Media/Downloads`, install and claim Plex, add the libraries.
+3. [qBittorrent on Windows behind a VPN](../media/qbittorrent-windows-vpn.md): share `/Volumes/Media/Downloads` from the Mac, map it as `M:`, install the VPN app and qBittorrent, bind qBittorrent to the VPN adapter, open the Web UI to the LAN only.
+4. [Jackett and Prowlarr](../media/jackett-and-prowlarr.md): install one of them and add your indexers. Optional: if some indexers fail with "Challenge detected but FlareSolverr is not configured", run [FlareSolverr](../media/flaresolverr.md) on the cluster (`192.168.50.13`) and point Jackett or Prowlarr at it. It does not solve captchas. This is the one media step that uses the cluster.
+5. [Sonarr and Radarr](../media/sonarr-and-radarr.md): root folders, qBittorrent as download client, the remote path mapping in both apps, indexers, naming, the Plex connection.
+6. Connect Seerr to Plex, Sonarr and Radarr ([Seerr](../apps/seerr-cloudflare-tunnel.md)), and add the media names to Pi-hole ([Media stack overview](../media/media-stack-overview.md#local-dns-names)).
 
-**Checkpoint:** `bash files/media/media-health.sh` on the Mac shows no `[FAIL]` lines, and a small test request appears in Plex as a hardlink ([Media stack overview, Check it](../apps/media-stack-overview.md#check-it)).
+**Checkpoint:** `bash files/media/media-health.sh` on the Mac shows no `[FAIL]` lines, and a small test request appears in Plex as a hardlink ([Media stack overview, Check it](../media/media-stack-overview.md#check-it)).
 
 ### Phase 13. Hardening, tidying, proof and backups
 
@@ -475,7 +475,7 @@ Each is independent.
 | Seerr and tunnel | Traefik; Cloudflare | [Seerr](../apps/seerr-cloudflare-tunnel.md) | Public name loads; no 502 |
 | Mac VM | Cluster with kube-vip | [Mac in a Lima VM](../hardware/mac-lima-vm.md) | Joined on `lima0` under the right name |
 | Helm on a new admin machine | Cluster | Phase 7 | `helm list -A` |
-| Media server (Plex, Sonarr, Radarr, Jackett on the Mac; qBittorrent on Windows) | The media volume mounted; the download share mapped on the PC; app backups if restoring ([Backups and secrets](../operations/backups-and-secrets.md#step-9-media-server-apps)) | Phase 12 | `media-health.sh` and `qbit-check.ps1` ([Media stack overview](../apps/media-stack-overview.md#check-it)); a test request reaches Plex |
+| Media server (Plex, Sonarr, Radarr, Jackett on the Mac; qBittorrent on Windows) | The media volume mounted; the download share mapped on the PC; app backups if restoring ([Backups and secrets](../operations/backups-and-secrets.md#step-9-media-server-apps)) | Phase 12 | `media-health.sh` and `qbit-check.ps1` ([Media stack overview](../media/media-stack-overview.md#check-it)); a test request reaches Plex |
 
 ## Check it
 
