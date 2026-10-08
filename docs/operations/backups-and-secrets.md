@@ -6,7 +6,7 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 
 | | |
 | --- | --- |
-| **Applies to** | ASUS ZenWiFi XT8 on Asuswrt-Merlin, TP-Link Archer A7 on OpenWrt, Homebridge (UI backup), k3s v1.34.3+k3s1 with embedded etcd, Pi-hole and Seerr on k3s, a Lima VM on a Mac |
+| **Applies to** | ASUS ZenWiFi XT8 on Asuswrt-Merlin, TP-Link Archer A7 on OpenWrt, Homebridge (UI backup), k3s v1.34.3+k3s1 with embedded etcd, Pi-hole and Seerr on k3s, a Lima VM on a Mac. The media server step follows the media pages: Plex, Sonarr, Radarr and Jackett on a Mac, qBittorrent on Windows |
 | **Also works for** | Other Asuswrt-Merlin routers and other OpenWrt devices (the backup mechanisms are the same; not tested by the author) |
 | **Time** | 30 minutes for a first full set; 2 minutes per device afterwards |
 | **You need first** | The devices you want to back up. Each section stands alone |
@@ -18,7 +18,7 @@ The repo holds **configuration**: scripts, Helm values, manifests. It holds no d
 Three kinds of thing live outside the repo:
 
 - **Device backups**: files a device exports that restore it in one step. They contain passwords.
-- **Application data**: the Homebridge pairing, the etcd database, the Seerr folder.
+- **Application data**: the Homebridge pairing, the etcd database, the Seerr folder, the media apps' settings and databases.
 - **Secrets**: passwords, tokens and keys. They live in a password manager and are typed in at install time.
 
 A `.gitignore` file stops the usual backup and secret file names from being committed by accident. It is a backstop, not the protection: the protection is never copying those files into the repo folder.
@@ -214,7 +214,33 @@ This keeps the real VM definition. Read the file before committing it. Nothing e
 
 > **Not verified:** the `k3s-vm.yaml` in this repo was reconstructed, not copied from a running VM. Replace it with your own `lima.yaml` once your VM works.
 
-### Step 9. Put the backups somewhere safe
+### Step 9. Media server apps
+
+Only if you run the [media stack](../apps/media-stack-overview.md). The media files themselves are not covered here: they are large, and can be downloaded again. What is worth keeping is each app's settings and database. Every one of these backups **contains secrets** (API keys, the Plex token, the qBittorrent Web UI login, indexer logins).
+
+| App | What to keep | Where | How |
+| --- | --- | --- | --- |
+| Sonarr, Radarr | Their own backup zips (made every 7 days, kept 28 days by default) | `~/.config/Sonarr/Backups`, `~/Library/Application Support/Radarr/Backups` | System > **Backup** > **Backup Now** before a change, then copy the folders off the Mac ([Sonarr and Radarr](../apps/sonarr-and-radarr.md#backups)) |
+| Plex Media Server | The data folder (without `Cache`) and the preferences plist, which holds the server's identity and token | `~/Library/Application Support/Plex Media Server/`, `~/Library/Preferences/com.plexapp.plexmediaserver.plist` | Quit Plex, then `tar` the folder and copy the plist ([Plex Media Server](../apps/plex-media-server.md#backup-and-move)). The folder can be tens of gigabytes |
+| Jackett | The config folder: API key, admin password, indexer logins | `~/.config/Jackett` (some installs: `~/Library/Application Support/Jackett`) | Copy it with the rest of the Mac ([Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#updating-jackett)) |
+| Prowlarr (if used instead) | Its built-in backup zips, like Sonarr and Radarr | Its appdata folder, `Backups` | System > Backup. **Not verified by the author**: Prowlarr was not installed in the build |
+| qBittorrent (Windows) | Settings, and the state of every torrent | `%APPDATA%\qBittorrent\qBittorrent.ini` and `%LOCALAPPDATA%\qBittorrent\BT_backup` | Quit qBittorrent (**File > Exit**), then copy both ([qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#backups)) |
+| The VPN app | Nothing local worth saving | | Keep the account login in the password manager |
+
+**Run on: the Mac**, after quitting Plex. This collects the Mac side into one archive in your home folder; copy it off the Mac.
+
+```sh
+tar -czf ~/media-apps-backup-$(date +%Y%m%d).tar.gz --exclude 'Plex Media Server/Cache' -C ~ \
+  ".config/Sonarr/Backups" \
+  "Library/Application Support/Radarr/Backups" \
+  ".config/Jackett" \
+  "Library/Application Support/Plex Media Server" \
+  "Library/Preferences/com.plexapp.plexmediaserver.plist"
+```
+
+> **Not verified:** this combined command was not run by the author. The per-app commands on the linked pages are the reference; the Plex data folder can make this archive very large, so leave it out and back Plex up on its own if space is short. If Jackett keeps its settings under `Library/Application Support/Jackett` on your Mac, change that line.
+
+### Step 10. Put the backups somewhere safe
 
 | Backup | Contains secrets | Keep it |
 | --- | --- | --- |
@@ -223,6 +249,7 @@ This keeps the real VM definition. Read the file before committing it. Nothing e
 | Homebridge backup archive | Yes | Same |
 | etcd snapshot and k3s token | Yes | Same |
 | Seerr folder archive | Yes (API keys) | Same |
+| Media apps: Sonarr and Radarr backup zips, Plex data folder and plist, Jackett folder, `qBittorrent.ini` and `BT_backup` | Yes (API keys, Plex token, Web UI login, indexer logins) | Same. The Plex folder is large; an external disk that is not the media volume is fine if it is encrypted |
 | Exported live configuration | Possibly | Same, or delete after comparing |
 | This repo | No | A Git host |
 
@@ -253,7 +280,13 @@ Every one of these appears in the repo only as a `<PLACEHOLDER>` or not at all.
 | Cloudflare account login | | Cloudflare dashboard |
 | Router admin password, Wi-Fi keys (`<WIFI_PASSWORD>`), IoT Wi-Fi key | | Router GUI; also inside the `.CFG` and the OpenWrt backup |
 | OpenWrt AP root password, stock AP admin password | | Each AP |
-| Plex, Sonarr and Radarr API keys | | Seerr setup |
+| Sonarr API key | `<SONARR_API_KEY>` | Seerr; Prowlarr if used; read from `~/.config/Sonarr/config.xml` by [`media-health.sh`](../../files/media/media-health.sh), never printed |
+| Radarr API key | `<RADARR_API_KEY>` | Seerr; Prowlarr if used; Radarr's `config.xml` |
+| Jackett API key and admin password | `<JACKETT_API_KEY>`, `<JACKETT_ADMIN_PASSWORD>` | The Torznab indexer entries in Sonarr and Radarr; `ServerConfig.json` |
+| Plex token | `<PLEX_TOKEN>` | The Plex Connect entries in Sonarr and Radarr, Seerr; stored in the Plex preferences plist as `PlexOnlineToken` |
+| qBittorrent Web UI user and password | `<QBIT_PASSWORD>` | The download client in Sonarr and Radarr; a hash of it in `qBittorrent.ini` |
+| VPN account login | | The VPN app on the torrent PC |
+| Indexer site logins | | Jackett or Prowlarr |
 | kubeconfig (`/etc/rancher/k3s/k3s.yaml`) | | Cluster admin access. Never copy it into the repo |
 
 Give each service its own password. One password shared by the cameras, the device accounts and Pi-hole means one leak exposes all of them.
@@ -280,6 +313,7 @@ Also never commit, even though no pattern catches them:
 - A Helm values file with a real password in it. Put passwords in a Kubernetes Secret and reference the Secret, as [values.yaml](../../files/pihole/values.yaml) does for Pi-hole.
 - A Homebridge `config.json` or backup archive.
 - An etcd snapshot.
+- Any media app config or backup: Sonarr's and Radarr's `config.xml` (holds the API key), Jackett's `ServerConfig.json`, Plex's `Preferences.xml` (the Linux form of its settings) or `com.plexapp.plexmediaserver.plist` (macOS), qBittorrent's `qBittorrent.ini`, and the Sonarr or Radarr backup zips.
 - Screenshots or pasted terminal output that show a token.
 
 > **Pitfall:** `.gitignore` does nothing for a file that is already tracked. If one slipped in, remove it with `git rm --cached <file>`, commit, and then treat its contents as exposed (next section), because it is still in the history.
@@ -304,6 +338,9 @@ These all count as exposed:
 | k3s join token | `k3s token rotate`, then the new token on every other server ([k3s HA cluster](../kubernetes/k3s-ha-cluster.md)). **Not verified** by the author |
 | Cluster admin certificate (kubeconfig) | `sudo k3s certificate rotate` on each server, one at a time, with k3s stopped before and started after. **Not verified** by the author; read the k3s certificate documentation first |
 | Cloudflare tunnel token | Cloudflare dashboard: delete the tunnel or refresh its token, then reinstall the `cloudflared` service with the new token |
+| Sonarr, Radarr or Jackett API key | Regenerate it in the app (Settings > General in Sonarr and Radarr; the dashboard in Jackett), then update every app that uses it: Seerr, the Torznab entries, Prowlarr. **Not verified** by the author |
+| Plex token | Sign the server out and in again, or remove the device under your Plex account's authorised devices; then **Authenticate with Plex.tv** again in Sonarr and Radarr. **Not verified** by the author |
+| qBittorrent Web UI password | **Tools > Options > Web UI**; then the download client in Sonarr and Radarr |
 | Wi-Fi keys, router and AP admin passwords | Each device's GUI; then take new backups, because the old ones hold the old keys |
 
 After rotating, the old value in a repository's history no longer matters. If you want it gone anyway, the simplest way is a new repository created from the current files with no history.

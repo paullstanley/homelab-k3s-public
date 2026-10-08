@@ -61,6 +61,11 @@ PAGES = [
         ("apps/homebridge-kasa-across-networks",   "Kasa-across-networks"),
         ("apps/homebridge-cameras",                "Homebridge-cameras"),
         ("apps/seerr-cloudflare-tunnel",           "Seerr-and-Cloudflare-tunnel"),
+        ("apps/media-stack-overview",              "Media-stack-overview"),
+        ("apps/plex-media-server",                 "Plex-Media-Server"),
+        ("apps/sonarr-and-radarr",                 "Sonarr-and-Radarr"),
+        ("apps/jackett-and-prowlarr",              "Jackett-and-Prowlarr"),
+        ("apps/qbittorrent-windows-vpn",           "qBittorrent-on-Windows-with-a-VPN"),
         ("apps/client-devices",                    "Client-devices"),
     ]),
     ("Operations", [

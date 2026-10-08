@@ -50,6 +50,8 @@ Where this page gives steps of its own (flashing, Entware, first boot, Helm), th
 | A computer with `ssh`, `scp` and a browser | Your workstation for every phase |
 | A password manager | For Wi-Fi keys, the k3s token, the tunnel token and every admin password. None of them go in Git |
 | A Cloudflare account and a domain whose DNS is on Cloudflare | Only for Seerr through a tunnel. The Zero Trust free plan is enough |
+| A Mac that can stay on, with a large external disk formatted APFS or Mac OS Extended (not exFAT) | Optional media server, Phase 12. The build used an Intel Mac |
+| A Windows 10 or 11 PC, and a VPN subscription whose Windows app allows torrent traffic | Optional downloader for the media server, Phase 12 |
 | A clone of this repository | `git clone https://github.com/<YOUR_ACCOUNT>/homelab-k3s-public.git`. Commands that name `files/...` run from its root |
 
 ## Steps
@@ -68,6 +70,12 @@ Once the router is reset you may have no internet for a while, so fetch every im
 | Raspberry Pi Imager | v2.0.11.1 or the "latest" installer | [raspberrypi.com/software](https://www.raspberrypi.com/software/) |
 | Raspberry Pi OS Lite (64-bit) | Debian 13 "trixie" release, or let Imager download it | [Raspberry Pi OS](https://www.raspberrypi.com/software/operating-systems/) |
 | Lima (Mac only) | Through Homebrew | [Lima installation](https://lima-vm.io/docs/installation/) |
+| Plex Media Server for macOS (media server only) | The macOS build; 1.43.4.10903 was the newest public release seen. The downloads page did not list files when checked | [Plex downloads](https://www.plex.tv/media-server-downloads/) |
+| Sonarr v4 for macOS | `Sonarr.main.4.0.20.3014.osx-x64-app.zip` (Intel; `osx-arm64-app.zip` for Apple silicon) | [sonarr.tv](https://sonarr.tv/#downloads-macos), [GitHub releases](https://github.com/Sonarr/Sonarr/releases) |
+| Radarr for macOS | `Radarr.master.6.3.0.10514.osx-app-core-x64.zip` (latest stable listed; Intel) | [radarr.video](https://radarr.video/#downloads-v3-macos), [GitHub releases](https://github.com/Radarr/Radarr/releases) |
+| Jackett for macOS, **or** Prowlarr | `Jackett.Binaries.macOS.tar.gz` (v0.24.2806; `macOSARM64` for Apple silicon), or `Prowlarr.master.2.6.5.5623.osx-app-core-x64.zip` | [Jackett releases](https://github.com/Jackett/Jackett/releases/latest), [prowlarr.com](https://prowlarr.com/) |
+| qBittorrent for Windows | `qbittorrent_5.2.4_x64_setup.exe` (libtorrent 1.2) or `qbittorrent_5.2.4_lt20_x64_setup.exe` (libtorrent 2.0) | [qbittorrent.org/download](https://www.qbittorrent.org/download) |
+| Your VPN's Windows app (Proton VPN as the example) | The vendor's current installer | [Proton VPN for Windows](https://protonvpn.com/download-windows) |
 
 Also copy your backups (if any) onto the workstation: the router `.CFG` and JFFS backups, the OpenWrt backup, the Homebridge backup, the etcd snapshot and token.
 
@@ -425,7 +433,21 @@ Each is independent.
 
 **Checkpoint:** each app's own Check it section passes.
 
-### Phase 12. Hardening, tidying, proof and backups
+### Phase 12. Media server (optional)
+
+**Goal:** a request in Seerr becomes a download on the torrent PC and then an item in Plex, without anyone touching a file.
+**Needs:** the Mac `media-1` on `192.168.50.2` with the media volume, the Windows PC `torrent-pc` on `192.168.50.16`, a VPN subscription. Seerr from Phase 11 is optional. None of this runs on the cluster.
+
+1. Read [Media stack overview](../apps/media-stack-overview.md): how the parts connect, the folder layout on one volume, and the remote path mapping.
+2. [Plex Media Server](../apps/plex-media-server.md): stop the Mac sleeping, make it start after a power cut, create `/Volumes/Media/TV`, `/Volumes/Media/Movies` and `/Volumes/Media/Downloads`, install and claim Plex, add the libraries.
+3. [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md): share `/Volumes/Media/Downloads` from the Mac, map it as `M:`, install the VPN app and qBittorrent, bind qBittorrent to the VPN adapter, open the Web UI to the LAN only.
+4. [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md): install one of them and add your indexers.
+5. [Sonarr and Radarr](../apps/sonarr-and-radarr.md): root folders, qBittorrent as download client, the remote path mapping in both apps, indexers, naming, the Plex connection.
+6. Connect Seerr to Plex, Sonarr and Radarr ([Seerr](../apps/seerr-cloudflare-tunnel.md)), and add the media names to Pi-hole ([Media stack overview](../apps/media-stack-overview.md#local-dns-names)).
+
+**Checkpoint:** `bash files/media/media-health.sh` on the Mac shows no `[FAIL]` lines, and a small test request appears in Plex as a hardlink ([Media stack overview, Check it](../apps/media-stack-overview.md#check-it)).
+
+### Phase 13. Hardening, tidying, proof and backups
 
 1. [Node firewall](../kubernetes/node-firewall.md) (optional).
 2. [Security review](../operations/security-review.md): go through the router and access point settings once.
@@ -453,6 +475,7 @@ Each is independent.
 | Seerr and tunnel | Traefik; Cloudflare | [Seerr](../apps/seerr-cloudflare-tunnel.md) | Public name loads; no 502 |
 | Mac VM | Cluster with kube-vip | [Mac in a Lima VM](../hardware/mac-lima-vm.md) | Joined on `lima0` under the right name |
 | Helm on a new admin machine | Cluster | Phase 7 | `helm list -A` |
+| Media server (Plex, Sonarr, Radarr, Jackett on the Mac; qBittorrent on Windows) | The media volume mounted; the download share mapped on the PC; app backups if restoring ([Backups and secrets](../operations/backups-and-secrets.md#step-9-media-server-apps)) | Phase 12 | `media-health.sh` and `qbit-check.ps1` ([Media stack overview](../apps/media-stack-overview.md#check-it)); a test request reaches Plex |
 
 ## Check it
 

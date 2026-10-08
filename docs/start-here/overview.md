@@ -25,6 +25,8 @@ flowchart TB
     api(["Kubernetes API .10<br/>kube-vip"])
     pihole(["Pi-hole .11<br/>MetalLB, 3 pods"])
     traefik(["Traefik .12<br/>MetalLB: web UIs"])
+    media["media-1 (Mac) .2<br/>Plex, Sonarr, Radarr, Jackett"]
+    torrent["torrent-pc (Windows) .16<br/>qBittorrent behind a VPN app"]
   end
   subgraph IOT["IoT network 192.168.101.0/24 (isolated)"]
     iot["Smart plugs, switches, bulbs"]
@@ -39,6 +41,9 @@ flowchart TB
   router -. "guest Wi-Fi, and VLAN 501 on the LAN ports" .- IOT
   apo -. "second SSID from VLAN 501" .- IOT
   s1 -. "Homebridge: allowed in by 3 router rules" .-> iot
+  router --- media
+  router --- torrent
+  torrent -. "writes downloads to the Mac's share (SMB)" .-> media
 ```
 
 ## What each part does
@@ -58,6 +63,7 @@ flowchart TB
 | Pi-hole | DNS and ad-blocking for the house, three copies | [Pi-hole](../apps/pihole.md) |
 | Homebridge | Brings non-HomeKit devices and cameras into Apple Home | [Homebridge](../apps/homebridge.md) |
 | Seerr | Media request app, reachable from outside through a tunnel | [Seerr](../apps/seerr-cloudflare-tunnel.md) |
+| Media stack (optional, outside the cluster) | Plex streams the library; Sonarr and Radarr turn requests into downloads and file the results; Jackett or Prowlarr searches the indexers; qBittorrent downloads on a separate Windows PC bound to a VPN. Start with the overview | [Media stack overview](../apps/media-stack-overview.md), [Plex Media Server](../apps/plex-media-server.md), [Sonarr and Radarr](../apps/sonarr-and-radarr.md), [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md), [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md) |
 
 ## The design decisions, and where each is explained
 
@@ -74,6 +80,7 @@ flowchart TB
 | Homebridge is a single pod on the node's own network | HomeKit pairs with one bridge identity; discovery needs the real LAN | [Homebridge](../apps/homebridge.md) |
 | Anything addressed by IP gets a reservation; anything carried around stays dynamic; stationary Wi-Fi devices are exempt from roaming | Names and integrations keep working, and smart plugs stop being kicked between mesh units | [Address plan](../network/address-plan.md) |
 | Access points only bridge: no routing, DHCP or firewall on them | One router makes every decision | [Archer A7](../hardware/tp-link-archer-a7-openwrt.md), [Archer AX21](../hardware/tp-link-archer-ax21.md) |
+| The media apps run natively on one Mac that holds the disks; only the downloader sits on a second PC behind a VPN | The VPN covers one machine and one program; Plex keeps a normal connection; imports stay hardlinks on one volume | [Media stack overview](../apps/media-stack-overview.md) |
 
 ## The parts that cost the most time
 
@@ -92,6 +99,7 @@ If you are short of time, read these first. Each was a real, hard-to-find fault.
 | A Cloudflare tunnel returned 502 after Traefik moved to its own address | [Seerr](../apps/seerr-cloudflare-tunnel.md) |
 | The router log grew to 25 MB because log rotation had been failing silently every night | [Router logging](../network/router-logging.md) |
 | Home names did not resolve on a laptop with a corporate VPN | [Client devices](../apps/client-devices.md) |
+| Imports to a second media disk were full copies instead of hardlinks, so every seeding download took its space twice | [Media stack overview](../apps/media-stack-overview.md#folder-layout-and-why-one-filesystem-matters) |
 
 ## What you can leave out
 
@@ -101,5 +109,6 @@ If you are short of time, read these first. Each was a real, hard-to-find fault.
 | An IoT network | [Isolated IoT network](../network/isolated-iot-network.md), [Kasa across networks](../apps/homebridge-kasa-across-networks.md) | Homebridge reaches devices on the LAN directly |
 | A mesh node or extra access points | Those hardware pages | Nothing |
 | The Mac | [Mac in a Lima VM](../hardware/mac-lima-vm.md) | Three servers is already a complete highly available cluster |
-| A cluster at all | Everything under Kubernetes and Apps | The router, access point, IoT and logging pages still apply |
+| A media server | The five media pages, starting at [Media stack overview](../apps/media-stack-overview.md) | Seerr has nothing to send requests to; skip it too |
+| A cluster at all | Everything under Kubernetes and Apps, except the media pages, which run outside the cluster | The router, access point, IoT and logging pages still apply |
 | ASUS hardware | The two ASUS pages | The ideas in [DNS design](../network/dns-design.md) and [Local-only IPv6](../network/local-only-ipv6.md) carry over, but the commands are Asuswrt-Merlin specific |

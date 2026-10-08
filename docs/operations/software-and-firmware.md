@@ -6,7 +6,7 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 
 | | |
 | --- | --- |
-| **Applies to** | ASUS ZenWiFi XT8 (RT-AX95Q v1) router and AiMesh node on GNUton 3004.388.x with amtm and Entware; TP-Link Archer A7 v5 on OpenWrt 25.12.x; TP-Link Archer AX21 v5 stock; Raspberry Pi 4 on Raspberry Pi OS Lite 64-bit; k3s v1.34 with MetalLB 0.15, kube-vip, Pi-hole (mojo2600 chart), Homebridge, Seerr, cloudflared; Lima on macOS |
+| **Applies to** | ASUS ZenWiFi XT8 (RT-AX95Q v1) router and AiMesh node on GNUton 3004.388.x with amtm and Entware; TP-Link Archer A7 v5 on OpenWrt 25.12.x; TP-Link Archer AX21 v5 stock; Raspberry Pi 4 on Raspberry Pi OS Lite 64-bit; k3s v1.34 with MetalLB 0.15, kube-vip, Pi-hole (mojo2600 chart), Homebridge, Seerr, cloudflared; Lima on macOS. Media stack: Plex Media Server, Sonarr, Radarr and Jackett on an Intel Mac (macOS 26), qBittorrent and the Proton VPN app on Windows |
 | **Also works for** | Other models from the same projects, with a different file name. Not tested by the author |
 | **Time** | Reading: 20 minutes. Each update: see the cadence table |
 | **You need first** | Backups of whatever you are about to update: [Backups and secrets](backups-and-secrets.md). The routine around upgrades (reboots, re-checks): [Maintenance](maintenance.md) |
@@ -25,7 +25,7 @@ Where a step was done on the author's hardware, it says so. Everything else on t
 
 ## Before you start
 
-- Take the backups first: router `.CFG` and JFFS, OpenWrt backup, etcd snapshot and token, Homebridge backup ([Backups and secrets](backups-and-secrets.md)).
+- Take the backups first: router `.CFG` and JFFS, OpenWrt backup, etcd snapshot and token, Homebridge backup, and for the media stack the Sonarr and Radarr backups and the Plex data folder ([Backups and secrets](backups-and-secrets.md)).
 - Read the release notes of the version you are moving to, and of every version you skip.
 - Pick a quiet time. Router and access point updates drop Wi-Fi; k3s updates restart pods.
 
@@ -81,6 +81,15 @@ cloudflared --version
 limactl --version
 limactl list
 ```
+
+**Run on: the media server Mac `media-1`**, from the root of this repo. The script prints the Sonarr and Radarr version and branch and the Plex version; Jackett's version is at the bottom of its dashboard.
+
+```sh
+bash files/media/media-health.sh
+curl -s http://127.0.0.1:32400/identity
+```
+
+**Run on: the torrent PC `torrent-pc`**: qBittorrent's version is in **Help > About**; the VPN app's in its own About screen, or in Windows **Settings > Apps > Installed apps**.
 
 Write the results down. That list is what the cadence table at the end works from.
 
@@ -543,6 +552,111 @@ The name and namespace must match k3s's HelmChart exactly. This is the permanent
 - Read the Traefik chart's major-version notes whenever a k3s release bumps the chart (v40 arrived with k3s v1.34.9).
 - Disabling Traefik (`disable: [traefik]`) must be done on every server.
 
+## Plex Media Server (macOS)
+
+| | |
+| --- | --- |
+| **Where** | [Plex Media Server downloads](https://www.plex.tv/media-server-downloads/) (choose macOS). Release announcements in the [Plex forum releases thread](https://forums.plex.tv/t/plex-media-server/30447/717) |
+| **Download** | The macOS build. Newest public release seen in October 2026: **1.43.4.10903** (announced 10 Sep 2026), which is also what the build runs. When checked, the downloads page failed to list its files ("not available at this time"); reload later |
+| **First install** | Open the download, drag the app to Applications, open it, claim it in the browser ([Plex Media Server, Step 4](../apps/plex-media-server.md#step-4-download-and-install-plex-media-server)) |
+| **Update** | Install the new macOS build over the old app, or accept the update the server offers in Plex Web. Quit Plex and back up its data folder first ([Plex Media Server, Upgrades](../apps/plex-media-server.md#upgrades)) |
+| **Check version** | Plex Web: **Settings > Server > General**; or `curl -s http://127.0.0.1:32400/identity` on the Mac (the `version=` attribute) |
+
+- **Security: run 1.43.3 or later.** Plex published an "Important Security Update for Plex Media Server v1.43.2 and earlier", and 1.43.3 (around 1 Sep 2026) fixes a number of security issues ([report](https://borncity.com/blog/2026/09/02/wichtiges-update-auf-plex-media-server-1-43-3-und-plex-desktop-1-115-0/)).
+- Which update path the build used was not recorded. Check Remote Access and one stream from outside after every update.
+- A move to another Mac copies the data folder **and** `~/Library/Preferences/com.plexapp.plexmediaserver.plist`, then needs a restart, because macOS caches preferences ([Plex: move an install](https://support.plex.tv/articles/201370363-move-an-install-to-another-system/)).
+- Hardware-accelerated transcoding needs a Plex Pass and, for HEVC encoding, a 7th-generation Intel CPU and PMS 1.41.3 or later ([Plex: hardware-accelerated streaming](https://support.plex.tv/articles/115002178853-using-hardware-accelerated-streaming/)).
+
+## Sonarr
+
+| | |
+| --- | --- |
+| **Where** | [sonarr.tv, macOS downloads](https://sonarr.tv/#downloads-macos); releases on [Sonarr/Sonarr](https://github.com/Sonarr/Sonarr/releases); [Servarr wiki: macOS install](https://wiki.servarr.com/sonarr/installation/macos) |
+| **Download** | Sonarr v4, latest stable seen in October 2026: **4.0.20.3014** (16 Sep 2026). Intel: `Sonarr.main.4.0.20.3014.osx-x64-app.zip`; Apple silicon: `...osx-arm64-app.zip`. macOS 10.15 or later |
+| **First install** | Move `Sonarr.app` to `/Applications`, then self-sign it and clear the quarantine flag ([Sonarr and Radarr, Step 1](../apps/sonarr-and-radarr.md#step-1-download-and-install)) |
+| **Update** | The built-in updater (**System > Updates**; mechanism **Built-in** under Settings > General > Updates). It was set to automatic in the build. Take **System > Backup > Backup Now** first |
+| **Check version** | **System > Status**; or `media-health.sh` ([Step 1](#step-1-find-out-what-you-run-now)) |
+
+**Run on: the Mac**, after a first install, and again if an update leaves the app refusing to open
+
+```sh
+codesign --force --deep -s - /Applications/Sonarr.app && xattr -rd com.apple.quarantine /Applications/Sonarr.app
+```
+
+- **Branch.** `main` is the default and stable branch; `develop` is beta and updates as soon as code passes tests, and you may not be able to go back to `main`. The build's Sonarr was on `develop`; choose `main` on a new install ([Sonarr FAQ](https://wiki.servarr.com/sonarr/faq)).
+- The app **must** be in `/Applications`. Gatekeeper's App Translocation otherwise blocks updates.
+
+## Radarr
+
+| | |
+| --- | --- |
+| **Where** | [radarr.video, macOS downloads](https://radarr.video/#downloads-v3-macos); releases on [Radarr/Radarr](https://github.com/Radarr/Radarr/releases); [Servarr wiki: macOS install](https://wiki.servarr.com/radarr/installation/macos) |
+| **Download** | Latest stable listed in October 2026: **v6.3.0.10514** (12 Jul 2026), Intel asset `Radarr.master.6.3.0.10514.osx-app-core-x64.zip`; arm64 for Apple silicon. Newer 6.4.x builds were pre-releases (`develop`). macOS 10.15 or later |
+| **First install** | As for Sonarr, with `Radarr.app` ([Sonarr and Radarr, Step 1](../apps/sonarr-and-radarr.md#step-1-download-and-install)) |
+| **Update** | **System > Updates**. Automatic updates were off in the build. Back up first |
+| **Check version** | **System > Status**; or `media-health.sh` |
+
+- **The observed version does not match the release page.** The build reported 6.4.4.10685 on `master`, newer than the newest stable on GitHub when checked. **Not verified** why; trust your own **System > Updates**.
+- Branches: `master` (default, stable, about monthly), `develop` (beta), `nightly` (alpha). You "may not be able to go back to `master`" after switching ([Radarr FAQ](https://wiki.servarr.com/radarr/faq)).
+- **Radarr v6 removed Basic authentication**; existing Basic settings convert to Forms ([Radarr settings](https://wiki.servarr.com/radarr/settings)).
+- Updates must also be self-signed, or installed by hand: run `codesign --force --deep -s - /Applications/Radarr.app && xattr -rd com.apple.quarantine /Applications/Radarr.app` again if the updated app will not open.
+- v6.2.1 added API key support for qBittorrent; the build still uses the Web UI user and password.
+
+## Jackett
+
+| | |
+| --- | --- |
+| **Where** | [Jackett/Jackett](https://github.com/Jackett/Jackett) (README and [latest release](https://github.com/Jackett/Jackett/releases/latest)) |
+| **Download** | Newest seen in October 2026: **v0.24.2806** (7 to 8 Oct 2026). `Jackett.Binaries.macOS.tar.gz` (Intel) or `Jackett.Binaries.macOSARM64.tar.gz`. Requires **macOS 13 or later**. The build ran v0.24.2756 |
+| **First install** | Extract to a permanent folder, run `install_service_macos` ([Jackett and Prowlarr, Steps 1 to 3](../apps/jackett-and-prowlarr.md#step-1-download-jackett)) |
+| **Update** | Automatic, unless **Disable auto-update** is ticked (it was, in the build). By hand: unload the service, extract the new archive over the folder, load it again ([Updating Jackett](../apps/jackett-and-prowlarr.md#updating-jackett)) |
+| **Check version** | The bottom of the Jackett dashboard, `http://127.0.0.1:9117` |
+
+- **Jackett releases almost daily**, mostly fixes to indexer definitions. An install that never updates slowly loses indexers. Prefer auto-update, or update by hand at least monthly.
+- Settings live in `~/.config/Jackett` (or `~/Library/Application Support/Jackett`), not the program folder, so they survive an update.
+- FlareSolverr (for Cloudflare-protected indexers) has no macOS build; its README also says no captcha solver currently works ([FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)).
+
+## Prowlarr (instead of Jackett)
+
+| | |
+| --- | --- |
+| **Where** | [prowlarr.com](https://prowlarr.com/); releases on [Prowlarr/Prowlarr](https://github.com/Prowlarr/Prowlarr/releases); [Servarr wiki: macOS install](https://wiki.servarr.com/prowlarr/installation/macos) |
+| **Download** | Latest stable seen in October 2026: **2.6.5.5623** (16 Sep 2026), Intel asset `Prowlarr.master.2.6.5.5623.osx-app-core-x64.zip`; arm64 for Apple silicon. macOS 10.15 or later |
+| **First install** | Move to `/Applications`, self-sign, open `http://localhost:9696` ([Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#install-prowlarr-on-macos)) |
+| **Update** | The built-in updater; the update must also be self-signed, or installed by hand |
+| **Check version** | **System > Status** |
+
+- **Not verified:** Prowlarr was not installed in the build.
+
+## qBittorrent (Windows)
+
+| | |
+| --- | --- |
+| **Where** | [qbittorrent.org/download](https://www.qbittorrent.org/download) and [news](https://www.qbittorrent.org/news); the project's GitHub. Nowhere else |
+| **Download** | Latest stable seen in October 2026: **v5.2.4** (28 Sep 2026). `qbittorrent_5.2.4_x64_setup.exe` (libtorrent 1.2.x, as in the build) or `qbittorrent_5.2.4_lt20_x64_setup.exe` (libtorrent 2.0.x). Windows 10 or later. A 5.3.0rc1 release candidate also exists; do not use it on the downloader. The build ran v5.1.0 |
+| **First install** | Run the installer with the defaults ([qBittorrent on Windows behind a VPN, Step 1](../apps/qbittorrent-windows-vpn.md#step-1-install-qbittorrent)) |
+| **Update** | Quit qBittorrent (**File > Exit**), back up `qBittorrent.ini` and `BT_backup`, run the new installer over the old one |
+| **Check version** | **Help > About** |
+
+- **Move off 5.1.x.** The 5.1 line is superseded; 5.2.4 includes Web UI hardening (only http(s) links in RSS and search, escaped titles) ([qBittorrent news](https://www.qbittorrent.org/news)).
+- **Keep the same libtorrent line** (1.2 or 2.0) unless you mean to change it; the two are separate installers.
+- The project warns about scam copies in the Microsoft Store. Install only from qbittorrent.org or the project's GitHub.
+- After an update, check that **Advanced > Network interface** is still the VPN adapter and the Web UI still listens on `192.168.50.16`; `qbit-check.ps1` checks both. **Not verified** that an update ever changes them.
+- qBittorrent 5.2 and later can give the Web API an API key (`Authorization: Bearer <key>`) ([API key authentication](https://github.com/qbittorrent/qBittorrent/wiki/API-Key-Authentication-(%E2%89%A5v5.2.0))).
+
+## The VPN app (Proton VPN as the example)
+
+| | |
+| --- | --- |
+| **Where** | Your VPN vendor. For Proton VPN: [Proton VPN for Windows](https://protonvpn.com/download-windows) (x64 and ARM64) |
+| **Download** | The vendor's current installer. The version did not render on Proton's page when checked |
+| **First install** | Install, sign in, connect at start-up, Allow LAN connections on ([qBittorrent on Windows behind a VPN, Step 2](../apps/qbittorrent-windows-vpn.md#step-2-set-up-the-vpn-app)) |
+| **Update** | The app's own updater |
+| **Check version** | The app's About screen, or Windows **Settings > Apps > Installed apps** |
+
+- After an update or reinstall, run `Get-NetAdapter`: if the adapter has a new name, qBittorrent stays bound to the old one and transfers nothing.
+- Settings that matter to the downloader can change with the app version: **Allow LAN connections** (Settings > Connection > Advanced settings; on by default) ([Proton: LAN connections](https://protonvpn.com/support/lan-connections)), the kill switch mode ([Proton: kill switch](https://protonvpn.com/support/what-is-kill-switch)), and port forwarding, whose port usually changes on reconnect ([Proton: port forwarding](https://protonvpn.com/support/port-forwarding)). Re-run the checks in [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#check-it).
+
 ## Recommended update order and cadence
 
 Update from the edge of the network inwards, and the cluster from the bottom up. Each row assumes the rows above it are healthy.
@@ -566,6 +680,13 @@ Update from the edge of the network inwards, and the cluster from the bottom up.
 | 15 | Homebridge image, then plugins | Monthly | UI backup | Accessories respond; pod DNS block |
 | 16 | Seerr | Monthly | Config volume backup | Public name loads |
 | 17 | cloudflared | With the Pi's `apt` updates | | Tunnel healthy |
+| 18 | Jackett (or Prowlarr) | Automatic; by hand at least monthly if auto-update is off | | Indexer tests pass in Sonarr and Radarr |
+| 19 | Sonarr, then Radarr | Monthly, on `main` / `master` | **Backup Now** in each app | **System > Status** Health clean; download client test passes |
+| 20 | Plex Media Server | Each public release; security releases promptly | Quit Plex; data folder backup | Remote Access green; one stream from outside |
+| 21 | VPN app on the torrent PC | When the vendor releases | | `Get-NetAdapter` shows the adapter under the same name |
+| 22 | qBittorrent | Each stable release, not release candidates | `qBittorrent.ini` and `BT_backup` | `qbit-check.ps1`; Sonarr and Radarr download client tests |
+
+The media rows are independent of the cluster rows; they only need the LAN. Update the VPN app before qBittorrent, because the binding depends on the adapter's name.
 
 After any of these, retake the backups ([Backups and secrets](backups-and-secrets.md)).
 
@@ -589,6 +710,9 @@ After an update round, run [Step 1](#step-1-find-out-what-you-run-now) again and
 | kube-vip changes version on its own | The HelmChart has no `version:` | Pin it |
 | Lima refuses to start after an update | Stale sudoers file | `limactl sudoers` and install it again |
 | Traefik settings reset after a k3s upgrade | The packaged manifest was edited, or the address was set by command | Use a `HelmChartConfig` |
+| Sonarr, Radarr or Prowlarr will not open after an update | The updated app is not self-signed | Run the `codesign` and `xattr` line again |
+| Stuck on a Sonarr or Radarr beta | The `develop` branch was chosen; going back may not be possible | Restore a backup from before the switch |
+| qBittorrent transfers nothing after a VPN app update | The adapter got a new name; qBittorrent is bound to the old one | Re-select it in **Advanced > Network interface** |
 
 ## Troubleshooting
 
@@ -621,3 +745,15 @@ After an update round, run [Step 1](#step-1-find-out-what-you-run-now) again and
 - [Cloudflare: cloudflared proxy-dns deprecation](https://developers.cloudflare.com/changelog/post/2025-11-11-cloudflared-proxy-dns/): the removal date and the support window.
 - [Pi-hole: upgrading the Docker image](https://docs.pi-hole.net/docker/upgrading/): why `pihole -up` is disabled in containers.
 - [Lima: VMNet networks](https://lima-vm.io/docs/config/network/vmnet/): installing socket_vmnet securely and the sudoers file.
+- [Plex forum: Plex Media Server releases](https://forums.plex.tv/t/plex-media-server/30447/717): the 1.43.4.10903 public release announcement.
+- [Plex: Move an install to another system](https://support.plex.tv/articles/201370363-move-an-install-to-another-system/): what to copy on macOS, and the restart that macOS needs.
+- [Sonarr releases](https://github.com/Sonarr/Sonarr/releases): current Sonarr v4 builds and their macOS assets.
+- [Servarr wiki: Sonarr on macOS](https://wiki.servarr.com/sonarr/installation/macos): the `/Applications`, `codesign` and `xattr` steps.
+- [Servarr wiki: Sonarr FAQ](https://wiki.servarr.com/sonarr/faq): branches and why going back from `develop` may not work.
+- [Radarr releases](https://github.com/Radarr/Radarr/releases): stable and pre-release Radarr builds.
+- [Servarr wiki: Radarr FAQ](https://wiki.servarr.com/radarr/faq): Radarr's branches and the v6 changes.
+- [Jackett on GitHub](https://github.com/Jackett/Jackett): macOS requirements, the service install and manual updates.
+- [Prowlarr releases](https://github.com/Prowlarr/Prowlarr/releases): current Prowlarr builds.
+- [qBittorrent download](https://www.qbittorrent.org/download): the official installers and the libtorrent choice.
+- [qBittorrent news](https://www.qbittorrent.org/news): release dates, the 5.2.4 Web UI hardening and the Microsoft Store warning.
+- [Proton VPN: Allow LAN connections](https://protonvpn.com/support/lan-connections): the setting the downloader depends on.

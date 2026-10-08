@@ -15,3 +15,12 @@ nvram-lists-*.txt
 kubeconfig*
 k3s.yaml
 live-export/
+# Media server backups and app settings: API keys, Plex token, Web UI login
+media-apps-backup-*.tar.gz
+plex-backup-*.tar.gz
+*_backup_*.zip
+qBittorrent.ini
+BT_backup/
+ServerConfig.json
+com.plexapp.plexmediaserver.plist
+__pycache__/

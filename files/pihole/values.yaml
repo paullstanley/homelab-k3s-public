@@ -152,9 +152,17 @@ dnsmasq:
   # Web apps behind Traefik all point at 192.168.50.12.
   # ----------------------------------------------------------------------------------------------
   customDnsEntries:
-    # An app on another machine, by short name and by full name (IPv4 and IPv6)
-    - address=/media.home.example.com/192.168.50.2
-    - address=/media.home.example.com/fd00:1234:5678:50::2
+    # Media apps on other machines (docs/apps/media-stack-overview.md). They run outside the
+    # cluster, so these point straight at the machines, not at Traefik; the port stays in the URL.
+    # Media server Mac media-1 (IPv4 and IPv6): Plex :32400, Sonarr :8989, Radarr :7878
+    - address=/plex.home.example.com/192.168.50.2
+    - address=/plex.home.example.com/fd00:1234:5678:50::2
+    - address=/shows.home.example.com/192.168.50.2
+    - address=/shows.home.example.com/fd00:1234:5678:50::2
+    - address=/movies.home.example.com/192.168.50.2
+    - address=/movies.home.example.com/fd00:1234:5678:50::2
+    # Torrent PC torrent-pc (IPv4 only): qBittorrent Web UI :8080
+    - address=/torrent.home.example.com/192.168.50.16
     # Pi-hole web UI: reached through Traefik (192.168.50.12) for HTTPS and sticky sessions.
     # DNS itself is still 192.168.50.11 and fd00:1234:5678:50::11.
     - address=/pihole.home.example.com/192.168.50.12

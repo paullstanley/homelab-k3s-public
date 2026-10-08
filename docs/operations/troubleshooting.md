@@ -6,7 +6,7 @@ Example addresses and names are explained in [Conventions](../start-here/convent
 
 | | |
 | --- | --- |
-| **Applies to** | ASUS ZenWiFi XT8 on Asuswrt-Merlin (GNUton build 3004.388.10_2), Archer A7 on OpenWrt, Archer AX21 stock firmware, k3s v1.34.3+k3s1 on three Raspberry Pis and a Lima VM, MetalLB v0.15.3, kube-vip, Traefik, Pi-hole, Homebridge, Seerr with a Cloudflare tunnel |
+| **Applies to** | ASUS ZenWiFi XT8 on Asuswrt-Merlin (GNUton build 3004.388.10_2), Archer A7 on OpenWrt, Archer AX21 stock firmware, k3s v1.34.3+k3s1 on three Raspberry Pis and a Lima VM, MetalLB v0.15.3, kube-vip, Traefik, Pi-hole, Homebridge, Seerr with a Cloudflare tunnel; the media stack (Plex, Sonarr, Radarr, Jackett on a Mac, qBittorrent on Windows behind a VPN app) as described on its own pages |
 | **Also works for** | Any subset. Each section says which module it concerns; skip the ones you do not have |
 | **Time** | Two minutes for the health check; most faults are found within ten |
 | **You need first** | SSH to a cluster server and to the router |
@@ -28,6 +28,7 @@ Most faults in this build come from a small number of mechanisms. Knowing them m
 | Storage for Homebridge and Seerr lives on one node | Those apps are down whenever that node is | [k3s HA cluster](../kubernetes/k3s-ha-cluster.md) |
 | Leftover k3s `server` folders, a VM joining on the wrong interface or under the wrong name | A server will not join or shows up twice | [k3s HA cluster](../kubernetes/k3s-ha-cluster.md), [Mac Lima VM](../hardware/mac-lima-vm.md) |
 | Scribe's log rotation needs a folder nothing creates | The router log grows without limit | [Router logging](../network/router-logging.md) |
+| The downloader runs on Windows and reports finished downloads as `M:\Downloads\...`, a path the Mac cannot open | Downloads finish but never import unless a remote path mapping translates the path | [Media stack overview](../apps/media-stack-overview.md#remote-path-mappings) |
 
 ## Before you start
 
@@ -398,6 +399,73 @@ grep -viE 'Getting sys_info|Serializing device|Updated sys_info|getSysInfo HTTP|
 
 > **Pitfall:** do not search the log for "oom" without `-w`. It matches every line with "room" in it.
 
+### Step 12. Media: a request never shows up in Plex
+
+Only if you run the [media stack](../apps/media-stack-overview.md). A request passes through five places in turn: Seerr, Sonarr or Radarr, qBittorrent, the import, Plex. Find the first place where the item is missing; the fault is just before it.
+
+Start with the two read-only check scripts. They name most broken pieces directly.
+
+**Run on: the Mac `media-1`**, as the user that runs the apps, from the root of this repo
+
+```sh
+bash files/media/media-health.sh
+```
+
+**Run on: the Windows PC `torrent-pc`**, in PowerShell, as the user that runs qBittorrent, from the root of this repo
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\files\media\qbit-check.ps1 -VpnAdapter "<VPN_ADAPTER_NAME>" -SavePath "M:\Downloads" -MediaServer 192.168.50.2
+```
+
+`media-health.sh` was tested against a mock API only, and `qbit-check.ps1` was parse-checked only; neither has been run on the real machines by the author. Any `[FAIL]` line is the place to start. If both are clean, follow the request:
+
+**1. Seerr.** Open the request. If it says **Pending**, it is waiting for approval. If it is approved but Sonarr or Radarr never received it, test the connection in Seerr under Settings > Services: the host must be `192.168.50.2`, not `localhost`, because Seerr runs on the cluster ([Sonarr and Radarr, Step 13](../apps/sonarr-and-radarr.md#step-13-connect-seerr)).
+
+**2. Sonarr or Radarr.** Is the series or film in the app? Then look at **Activity > Queue** and **System > Status** (Health).
+
+| You see | Meaning | Next |
+| --- | --- | --- |
+| The item is there but nothing is in the queue | No release was found or sent. "Indexers are unavailable due to failures", or no indexer returns results | Run an Interactive Search on the item. If it shows nothing, test the indexers: [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#troubleshooting) |
+| A download client error in Health, or the queue says it cannot reach the client | The Mac cannot reach qBittorrent's Web UI | Part 3 |
+| The queue shows **Downloaded - waiting to import**, or a remote path message | The download finished; the import failed | Part 4 |
+| The item is marked as imported | The file is in the library | Part 5 |
+
+**3. qBittorrent.** First, from the Mac:
+
+**Run on: the Mac**
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' http://192.168.50.16:8080/
+```
+
+`200` means the Web UI answers. Anything else: the PC is asleep or off, qBittorrent is not running, the Web UI is on another address, the Windows firewall rule is missing, or the VPN app blocks LAN traffic ([qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#troubleshooting)).
+
+In the Web UI, find the torrent. It must carry the category the app set (`tv-sonarr` or `radarr`); without it, the app never sees the download as its own. If it is there but not moving: the VPN is down (no transfers by design, because qBittorrent is bound to the VPN adapter), it is bound to an adapter name that no longer exists, or the release simply has no peers.
+
+**4. The import.** The download is finished but Sonarr or Radarr cannot find or read it.
+
+**Run on: the Mac**
+
+```sh
+ls -lt /Volumes/Media/Downloads | head
+```
+
+| Result | Meaning | Fix |
+| --- | --- | --- |
+| The download is listed | The files are on the Mac; the app is not looking in the right place | Remote path mapping in **both** apps: Host `192.168.50.16` exactly as in the download client, Remote Path `M:\Downloads\`, Local Path `/Volumes/Media/Downloads/`, with the volume name's capitals right ([Sonarr and Radarr, Step 6](../apps/sonarr-and-radarr.md#step-6-add-the-remote-path-mapping)) |
+| The download is not listed | qBittorrent saved it somewhere else: a local disk, a category save path, or `M:` was not connected when it started | Check the default and category save paths, and that `M:` is mapped ([qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#troubleshooting)) |
+| `No such file or directory` for the folder itself | The media volume is not mounted | Reconnect the disk; [Plex Media Server](../apps/plex-media-server.md#troubleshooting) |
+
+Hover the queue item's icon in Activity > Queue for the app's own reason; **Manual Import** handles a release it could not match ([Sonarr and Radarr](../apps/sonarr-and-radarr.md#troubleshooting)).
+
+**5. Plex.** The file is in `/Volumes/Media/TV` or `/Volumes/Media/Movies`, but Plex does not show it.
+
+| Cause | Fix |
+| --- | --- |
+| No Plex Connect entry in Sonarr or Radarr, or its token expired | Add it, or **Authenticate with Plex.tv** again ([Plex Media Server, Step 12](../apps/plex-media-server.md#step-12-let-sonarr-and-radarr-update-plex)) |
+| The root folder is not one of the library's folders | Add the folder to the library ([Plex Media Server, Step 6](../apps/plex-media-server.md#step-6-add-the-libraries)) |
+| Plex matched it to the wrong title, or not at all | File and folder naming ([Plex Media Server, Step 7](../apps/plex-media-server.md#step-7-name-the-files-the-way-plex-expects)) |
+
 ## Check it
 
 After any fix, run [Step 1](#step-1-the-two-minute-health-check) again. For a full pass, run [Verification](verification.md).
@@ -553,6 +621,30 @@ Lookup tables by area: symptom, cause, fix. The linked page has the detail.
 | `DHCPSOLICIT(br0)` repeating with no reply | A device wants DHCPv6; the router only does SLAAC (self-assigned addresses) | Nothing |
 | The AiMesh node's log is empty after a reboot | The node has no USB drive and no Scribe; its log lives in memory | Expected |
 
+### Media server
+
+The detail is on each linked page; [Step 12](#step-12-media-a-request-never-shows-up-in-plex) walks a request through the whole chain.
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Downloads finish but never import; the queue shows "Downloaded - waiting to import", or Health shows **Bad Remote Path Mapping** | No remote path mapping, a mapping for the wrong Host (address in one place, name in the other), or a typo or case difference in the path | Fix the mapping in **both** Sonarr and Radarr. [Media stack overview](../apps/media-stack-overview.md#remote-path-mappings), [Sonarr and Radarr](../apps/sonarr-and-radarr.md#step-6-add-the-remote-path-mapping) |
+| One of Sonarr and Radarr imports, the other does not | Their mappings differ | Copy the working mapping into the other app. [Media stack overview](../apps/media-stack-overview.md#pitfalls) |
+| **Remote Path is Used and Import Failed** | The mapping applied but the file could not be read: share or volume not mounted, permissions | `ls /Volumes/Media/Downloads` on the Mac. [Sonarr and Radarr](../apps/sonarr-and-radarr.md#troubleshooting) |
+| Imports work but the disk fills twice as fast as expected | The root folder is on another volume from `Downloads`, or the volume is exFAT, so every import is a copy | Keep root folders on the download volume, APFS or Mac OS Extended; `ls -li` shows the same inode for a hardlink. [Media stack overview](../apps/media-stack-overview.md#folder-layout-and-why-one-filesystem-matters) |
+| Download client test fails: cannot connect | qBittorrent not running, Web UI on another address, Windows firewall, or the VPN app blocking LAN traffic | Run `qbit-check.ps1` on the PC; check "Allow LAN connections". [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#troubleshooting) |
+| Download client test fails: unauthorised, or the login returns `403` | Wrong credentials, then the Mac's address was banned after repeated failures | Correct them; wait out the ban or restart qBittorrent. [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#troubleshooting) |
+| Nothing imports after the Windows PC restarts | `M:` not reconnected before qBittorrent started, nobody signed in, or qBittorrent runs as a service and cannot see mapped drives | Sign in, open `M:`, restart qBittorrent; or use UNC paths. [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#pitfalls) |
+| No transfers although the VPN is connected | qBittorrent is bound to an adapter name that no longer exists | Re-select the adapter in **Advanced > Network interface**. [qBittorrent on Windows behind a VPN](../apps/qbittorrent-windows-vpn.md#troubleshooting) |
+| **Indexers are unavailable due to failures** | An indexer removed from Jackett but still in the app, or a Cloudflare challenge ("FlareSolverr is not configured") | Test, fix or remove the indexer in Jackett and in the apps. [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#troubleshooting) |
+| Sonarr: **Indexer Download Client is Invalid** (Radarr: Invalid Indexer Download Client Setting) | An indexer points at a download client that was deleted or disabled | Settings > Indexers: clear or change its Download Client. [Sonarr and Radarr](../apps/sonarr-and-radarr.md#troubleshooting) |
+| `http://127.0.0.1:9117` does not load | The Jackett service is not loaded or crashed | `launchctl load ~/Library/LaunchAgents/org.user.Jackett.plist`; read its log. [Jackett and Prowlarr](../apps/jackett-and-prowlarr.md#troubleshooting) |
+| An item imported but Plex does not show it | No Plex Connect entry, or the library does not include that root folder | [Plex Media Server](../apps/plex-media-server.md#troubleshooting) |
+| Plex shows items as unavailable | Their volume is not mounted | Reconnect the disk; rescan. [Plex Media Server](../apps/plex-media-server.md#troubleshooting) |
+| Everything stops after the Mac restarts | Nobody logged in, the Mac sleeps, or the external volume is not mounted yet | [Plex Media Server, Step 1](../apps/plex-media-server.md#step-1-stop-the-mac-sleeping-and-make-it-restart-after-a-power-cut) |
+| Plex Remote Access shows "Not available outside your network" | Port forward missing or pointing at an old address, double NAT, or CGNAT | [Plex Media Server, Step 9](../apps/plex-media-server.md#step-9-remote-access-with-a-manual-port-forward) |
+| Sonarr, Radarr or Prowlarr will not open after an update | The updated app is not self-signed | Run the `codesign` and `xattr` commands again. [Sonarr and Radarr](../apps/sonarr-and-radarr.md#step-3-choose-the-branch-and-how-updates-install) |
+| `shows.home.example.com` (or another media name) does not resolve | The Pi-hole entry is missing, or the device does not use Pi-hole | `nslookup shows.home.example.com 192.168.50.11`; [values.yaml](../../files/pihole/values.yaml). [Media stack overview](../apps/media-stack-overview.md#local-dns-names) |
+
 ## References
 
 - [Kubernetes: Debug Pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/): reading `describe pod` output and pod states such as Pending and CrashLoopBackOff.
@@ -564,3 +656,5 @@ Lookup tables by area: symptom, cause, fix. The linked page has the detail.
 - [ufw manual page](https://manpages.ubuntu.com/manpages/noble/en/man8/ufw.8.html): the `ufw status`, `allow from`, `disable` and `enable` commands used in the firewall section.
 - [Asuswrt-Merlin wiki: User scripts](https://github.com/RMerl/asuswrt-merlin.ng/wiki/User-scripts): the `service-event-end`, `firewall-start` and `dnsmasq.postconf` hooks referred to above.
 - [Pi-hole documentation](https://docs.pi-hole.net/): the query log, allow lists and FTL database used in the DNS sections.
+- [Servarr wiki: Sonarr System](https://wiki.servarr.com/sonarr/system) and [Radarr System](https://wiki.servarr.com/radarr/system): every Health message in the media section, with its cause and fix.
+- [TRaSH Guides: Remote Path Mappings](https://trash-guides.info/Radarr/Tips/Radarr-remote-path-mapping/): why a download client on another machine needs a mapping, and the waiting-to-import symptom.

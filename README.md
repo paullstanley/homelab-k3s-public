@@ -1,6 +1,6 @@
 # Home network and k3s homelab: a how-to wiki
 
-A set of step-by-step guides for building and looking after a home network with an isolated IoT network, local-only IPv6, and a small highly available k3s (Kubernetes) cluster that runs Pi-hole, Homebridge and Seerr. Every guide comes from a real build, and records what went wrong as well as what worked.
+A set of step-by-step guides for building and looking after a home network with an isolated IoT network, local-only IPv6, and a small highly available k3s (Kubernetes) cluster that runs Pi-hole, Homebridge and Seerr, plus an optional media server (Plex, Sonarr, Radarr and a VPN'd downloader) beside it. Every guide comes from a real build, and records what went wrong as well as what worked.
 
 The guides are **modular**. Each page stands on its own: if you only own one of these devices, or only want Pi-hole on k3s, go straight to that page. Each one lists what it needs first.
 
@@ -36,6 +36,8 @@ The guides are **modular**. Each page stands on its own: if you only own one of 
 | Homebridge reaching Kasa devices on the IoT network | [Kasa across networks](docs/apps/homebridge-kasa-across-networks.md) |
 | Axis or Wyze cameras in the Home app | [Cameras](docs/apps/homebridge-cameras.md) |
 | A request app reachable from outside without opening a port | [Seerr behind a Cloudflare tunnel](docs/apps/seerr-cloudflare-tunnel.md) |
+| A media library that fills itself: requests become downloads that land in Plex, named and sorted | [Media stack overview](docs/apps/media-stack-overview.md), then [Plex Media Server](docs/apps/plex-media-server.md), [Sonarr and Radarr](docs/apps/sonarr-and-radarr.md), [Jackett and Prowlarr](docs/apps/jackett-and-prowlarr.md) |
+| A download client on its own PC, with torrent traffic forced through a VPN | [qBittorrent on Windows behind a VPN](docs/apps/qbittorrent-windows-vpn.md) |
 | Home names working on a laptop with a corporate VPN | [Client devices](docs/apps/client-devices.md) |
 | To understand what your router log is telling you | [Router logging](docs/network/router-logging.md) |
 | To build the whole thing from scratch, in order, including flashing the firmware | [From nothing to a full deployment](docs/start-here/build-from-nothing.md) |
@@ -66,9 +68,10 @@ The short version is below. The full version, with downloads, flashing, first bo
 | 6 | DNS for the house | [Pi-hole](docs/apps/pihole.md), then point the router at it: [DNS design](docs/network/dns-design.md) |
 | 7 | Optional fourth server | [Mac in a Lima VM](docs/hardware/mac-lima-vm.md) |
 | 8 | Apps | [Homebridge](docs/apps/homebridge.md), [Kasa](docs/apps/homebridge-kasa-across-networks.md), [Cameras](docs/apps/homebridge-cameras.md), [Seerr](docs/apps/seerr-cloudflare-tunnel.md) |
-| 9 | Optional hardening | [Node firewall](docs/kubernetes/node-firewall.md) |
-| 10 | Tidy up addresses and names | [Address plan](docs/network/address-plan.md) |
-| 11 | Prove it, back it up | [Verification](docs/operations/verification.md), [Backups and secrets](docs/operations/backups-and-secrets.md) |
+| 9 | Optional media server (a Mac and a Windows PC outside the cluster) | [Media stack overview](docs/apps/media-stack-overview.md), [Plex](docs/apps/plex-media-server.md), [qBittorrent behind a VPN](docs/apps/qbittorrent-windows-vpn.md), [Jackett and Prowlarr](docs/apps/jackett-and-prowlarr.md), [Sonarr and Radarr](docs/apps/sonarr-and-radarr.md) |
+| 10 | Optional hardening | [Node firewall](docs/kubernetes/node-firewall.md) |
+| 11 | Tidy up addresses and names | [Address plan](docs/network/address-plan.md) |
+| 12 | Prove it, back it up | [Verification](docs/operations/verification.md), [Backups and secrets](docs/operations/backups-and-secrets.md) |
 
 Between steps 1 and 6 there is no Pi-hole yet, so nothing on the network should be told to use it. [DNS design](docs/network/dns-design.md) explains how to get through that window.
 
@@ -96,8 +99,8 @@ Two labels matter:
 
 | Folder | Contents |
 | --- | --- |
-| [`docs/`](docs/) | The guides: `start-here`, `hardware`, `network`, `kubernetes`, `apps`, `operations` |
-| [`files/`](files/) | Working configuration files and scripts the guides use: router scripts, access point scripts, k3s configs, Helm values, MetalLB, Traefik, the node firewall |
+| [`docs/`](docs/) | The guides: `start-here`, `hardware`, `network`, `kubernetes`, `apps` (including the media stack pages), `operations` |
+| [`files/`](files/) | Working configuration files and scripts the guides use: router scripts, access point scripts, k3s configs, Helm values, MetalLB, Traefik, the node firewall, and the media stack health checks in [`files/media/`](files/media/) |
 | [`extras/`](extras/) | Older generic templates (Portainer, Flame, Homarr, code-server, cert-manager issuers, example Ingresses). Not part of the build described here and not maintained |
 
 The same guides are also published on this repository's **Wiki** tab, with a sidebar. The wiki is generated from `docs/` by [`files/scripts/build-wiki.py`](files/scripts/build-wiki.py); edit the files in `docs/`, never the wiki pages.
